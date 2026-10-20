@@ -92,14 +92,18 @@ Done:
 - Heston surrogate reproduced in PyTorch. Result on 1,800 test surfaces after 200 epochs (77 s on CPU):
   mean relative error 0.18 percent, RMSE 0.0009 implied vol (about 0.09 vol points), worst case 18 percent.
   Saved in results/reproduction.json.
+- Reproduction compared with the original notebook (docs/reproduction_comparison.md): final validation RMSE and the
+  per-cell error pattern are consistent with the original. One seed only.
+- Worst case (18 percent) located: a single cell at maturity 0.1, strike 1.5; errors concentrate at short maturity
+  and near the lower parameter bounds. Descriptive only, to be tested over seeds.
 Not done / not verified:
-- These numbers have NOT been compared with the paper's reported Heston errors. Do that first and record any gap.
-- The 18 percent worst case is unexplained; inspect which parameters and grid cells cause it.
+- The paper's own reported Heston numbers have NOT been checked (arxiv.org is unreachable from the work
+  environment). Someone with access should read the Heston section and add the figures to the comparison note.
 - The claim that no controlled study of this exact question exists rests only on papers found so far.
 - Proposal page count not checked (target at most 4 pages).
 
 ## 7. Next tasks, in order
-1. Compare reproduction with the paper; document the gap in docs/.
+1. DONE except the paper's own numbers (see section 6). Next: step 2.
 2. Write src/heston.py: exact call pricer (characteristic function, numerical integration), Sobol parameter
    sampler, implied vol inversion, dense price grid. Validate against the shipped data file.
 3. Write src/violations.py: Carr and Madan checks (decreasing and convex in strike, increasing in maturity),

@@ -5,7 +5,7 @@ RMSE loss, Adam, batch 32. Maps Heston parameters -> 88 implied vols (11 strikes
 In the original notebook the surface is standardised with StandardScaler and parameters with the bounds below.
 """
 import argparse, gzip, json, time
-import numpy as np, torch
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
@@ -20,6 +20,7 @@ def load(path):
     return dat[:, :5], dat[:, 5:]   # surfaces? see main(): columns 0-4 are params, 5.. are IVs
 
 def main():
+    import torch   # imported here so that load() and the constants are usable without torch
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     ap.add_argument("--epochs", type=int, default=200)
