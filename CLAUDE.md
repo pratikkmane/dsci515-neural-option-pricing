@@ -93,6 +93,10 @@ Done:
 - Heston surrogate reproduced in PyTorch. Result on 1,800 test surfaces after 200 epochs (77 s on CPU):
   mean relative error 0.18 percent, RMSE 0.0009 implied vol (about 0.09 vol points), worst case 18 percent.
   Saved in results/reproduction.json.
+- Exact Heston pricer written and validated (src/heston.py, docs/heston_pricer.md). Matches a 30-digit reference to
+  about 3e-13 and the shipped data to about 1e-12 at maturities 0.6, 1.2, 1.8, 2.0. At 0.1, 0.3, 0.9, 1.5 the shipped
+  vols are slightly lower than exact (RMS 5.9e-4 at 0.1); cause unknown. About 1.9 percent of 88-grid cells (mostly
+  maturity 0.1, strikes 0.5 to 0.7) have out-of-the-money prices below 1e-11 and give NaN: mask them, do not fill.
 Not done / not verified:
 - Compared with the authors' own notebook log: final validation RMSE 0.0279 (ours) against 0.0298 (theirs) in
   standardised units, one seed; epoch-to-epoch variation is about 0.002, and the two definitions differ slightly,
@@ -106,7 +110,7 @@ Not done / not verified:
 
 ## 7. Next tasks, in order
 1. Compare reproduction with the paper; document the gap in docs/.
-2. Write src/heston.py: exact call pricer (characteristic function, numerical integration), Sobol parameter
+2. DONE (docs/heston_pricer.md). Was: write src/heston.py: exact call pricer (characteristic function, numerical integration), Sobol parameter
    sampler, implied vol inversion, dense price grid. Validate against the shipped data file.
 3. Write src/violations.py: Carr and Madan checks (decreasing and convex in strike, increasing in maturity),
    negative probability mass, tolerance calibrated on exact surfaces.
