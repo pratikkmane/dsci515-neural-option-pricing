@@ -1,4 +1,5 @@
 # CLAUDE.md: DSCI-515 project "Accurate but Inconsistent"
+Project title (no question mark): Accurate but Inconsistent: When Neural Option Pricers Break No-Arbitrage Rules
 
 Read this first. It states what the project is, what the course requires, what is done, and what to do next.
 Style rules: British English. No em dashes. Never invent citations, results or numbers; mark anything unverified.
@@ -93,7 +94,12 @@ Done:
   mean relative error 0.18 percent, RMSE 0.0009 implied vol (about 0.09 vol points), worst case 18 percent.
   Saved in results/reproduction.json.
 Not done / not verified:
-- These numbers have NOT been compared with the paper's reported Heston errors. Do that first and record any gap.
+- Compared with the authors' own notebook log: final validation RMSE 0.0279 (ours) against 0.0298 (theirs) in
+  standardised units, one seed; epoch-to-epoch variation is about 0.002, and the two definitions differ slightly,
+  so call it consistent, not matching. NOT yet compared with the paper's reported Heston errors. Do that first.
+- results/reproduction.json key is rmse_iv, in raw implied-vol units (0.0009 = about 0.09 vol points).
+- The authors' notebook was not run as published (old Keras import, Windows path). Do not claim it fails; say it was
+  written for 2019-era Keras and we ported it.
 - The 18 percent worst case is unexplained; inspect which parameters and grid cells cause it.
 - The claim that no controlled study of this exact question exists rests only on papers found so far.
 - Proposal page count not checked (target at most 4 pages).
@@ -126,7 +132,7 @@ Not done / not verified:
 - src/ library code; scripts/ experiment runners; notebooks/ analysis; data/ Heston training set;
   results/ metrics and figures; app/ demo; docs/ proposal and notes.
 - The proposal is an editable document on claude.ai (title: Accurate but Inconsistent: When Do Neural Option
-  Pricers Break No-Arbitrage Rules?). Export it to PDF or Markdown into docs/ so it lives in the repo.
+  Pricers Break No-Arbitrage Rules). Export it to PDF or Markdown into docs/ so it lives in the repo.
 - Setup: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 - Reproduce: python src/reproduce_heston.py --data data/HestonTrainSet.txt.gz --epochs 200
 - Training is small (minutes on CPU). Use a GPU only for the largest runs. Fix seeds and log every run to results/.

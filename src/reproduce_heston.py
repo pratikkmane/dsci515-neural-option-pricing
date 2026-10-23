@@ -59,7 +59,7 @@ def main():
     rel = 100*np.abs((S_te-pred)/S_te)
     res = dict(n_train=len(Xtr), n_test=len(Xte), epochs=a.epochs,
                mean_rel_err_pct=float(rel.mean()), max_rel_err_pct=float(rel.max()),
-               rmse_iv_points=float(np.sqrt(np.mean((S_te-pred)**2))),
+               rmse_iv=float(np.sqrt(np.mean((S_te-pred)**2))),
                val_rmse_std_units_final=hist[-1], seconds=time.time()-t0)
     print(json.dumps(res, indent=2))
     json.dump(res, open(a.out, "w"), indent=2)

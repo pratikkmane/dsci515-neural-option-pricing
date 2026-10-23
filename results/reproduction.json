@@ -4,7 +4,7 @@
   "epochs": 200,
   "mean_rel_err_pct": 0.18176188089726875,
   "max_rel_err_pct": 18.062729617572813,
-  "rmse_iv_points": 0.0009302356221828161,
+  "rmse_iv": 0.0009302356221828161,
   "val_rmse_std_units_final": 0.027849201906968362,
   "seconds": 77.25433850288391
 }
