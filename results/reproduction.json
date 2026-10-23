@@ -2,9 +2,9 @@
   "n_train": 10200,
   "n_test": 1800,
   "epochs": 200,
-  "mean_rel_err_pct": 0.18176188089726875,
+  "mean_rel_err_pct": 0.18176188089726447,
   "max_rel_err_pct": 18.062729617572813,
-  "rmse_iv": 0.0009302356221828161,
-  "val_rmse_std_units_final": 0.027849201906968362,
-  "seconds": 77.25433850288391
+  "rmse_iv": 0.0009302356221828069,
+  "val_rmse_std_units_final": 0.02784920190696826,
+  "seconds": 26.292055130004883
 }

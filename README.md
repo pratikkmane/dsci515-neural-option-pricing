@@ -19,8 +19,11 @@ Base paper: Horvath, Muguruza and Tomas (2021), *Deep learning volatility*, Quan
 ```
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python src/reproduce_heston.py --data data/HestonTrainSet.txt.gz --epochs 200
+python src/reproduce_heston.py --epochs 200
 ```
+`--data` and `--out` are optional. Defaults are `data/HestonTrainSet.txt.gz` and `results/reproduction.json`
+resolved from the repository root, so the script works even when launched from `src/`.
+
 See `results/reproduction.json` for the latest numbers.
 
 ## Team workflow

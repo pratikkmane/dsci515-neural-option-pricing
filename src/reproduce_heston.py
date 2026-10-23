@@ -5,6 +5,7 @@ RMSE loss, Adam, batch 32. Maps Heston parameters -> 88 implied vols (11 strikes
 In the original notebook the surface is standardised with StandardScaler and parameters with the bounds below.
 """
 import argparse, gzip, json, time
+from pathlib import Path
 import numpy as np, torch
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -20,10 +21,14 @@ def load(path):
     return dat[:, :5], dat[:, 5:]   # surfaces? see main(): columns 0-4 are params, 5.. are IVs
 
 def main():
+    repo_root = Path(__file__).resolve().parents[1]
+    default_data = repo_root / "data" / "HestonTrainSet.txt.gz"
+    default_out = repo_root / "results" / "reproduction.json"
+
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", required=True)
+    ap.add_argument("--data", default=str(default_data))
     ap.add_argument("--epochs", type=int, default=200)
-    ap.add_argument("--out", default="results/reproduction.json")
+    ap.add_argument("--out", default=str(default_out))
     ap.add_argument("--seed", type=int, default=0)
     a = ap.parse_args()
     torch.manual_seed(a.seed); np.random.seed(a.seed)
@@ -62,6 +67,7 @@ def main():
                rmse_iv=float(np.sqrt(np.mean((S_te-pred)**2))),
                val_rmse_std_units_final=hist[-1], seconds=time.time()-t0)
     print(json.dumps(res, indent=2))
+    Path(a.out).parent.mkdir(parents=True, exist_ok=True)
     json.dump(res, open(a.out, "w"), indent=2)
     torch.save(net.state_dict(), a.out.replace(".json", "_weights.pt"))
 

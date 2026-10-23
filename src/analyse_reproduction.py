@@ -168,3 +168,7 @@ print("Relative error (%):", relative_errors[surface_idx, grid_idx])
 print("True implied volatility:", S_test[surface_idx, grid_idx])
 print("Predicted implied volatility:", predictions[surface_idx, grid_idx])
 print("Heston parameters:", P_test[surface_idx])
+
+# Inspect one reference implied-volatility surface
+print("\nFirst reference surface:")
+print(np.round(implied_vols[0].reshape(8, 11), 4))
