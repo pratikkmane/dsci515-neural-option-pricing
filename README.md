@@ -1,4 +1,4 @@
-# Accurate but Inconsistent: When Do Neural Option Pricers Break No-Arbitrage Rules?
+# Accurate but Inconsistent: When Neural Option Pricers Break No-Arbitrage Rules
 
 DSCI-515 Statistical Learning course project (Option 1). We study whether neural option-pricing surrogates that are
 accurate on average still violate static no-arbitrage conditions (Carr and Madan, 2005), and why.
