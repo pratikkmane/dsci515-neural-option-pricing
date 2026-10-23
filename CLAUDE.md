@@ -97,8 +97,7 @@ Not done / not verified:
 - Compared with the authors' own notebook log: final validation RMSE 0.0279 (ours) against 0.0298 (theirs) in
   standardised units, one seed; epoch-to-epoch variation is about 0.002, and the two definitions differ slightly,
   so call it consistent, not matching. NOT yet compared with the paper's reported Heston errors. Do that first.
-- results/reproduction.json key rmse_iv_points is in raw implied-vol units (0.0009 = about 0.09 vol points). Rename
-  it to rmse_iv in src/reproduce_heston.py and the JSON so the name does not mislead.
+- results/reproduction.json key is rmse_iv, in raw implied-vol units (0.0009 = about 0.09 vol points).
 - The authors' notebook was not run as published (old Keras import, Windows path). Do not claim it fails; say it was
   written for 2019-era Keras and we ported it.
 - The 18 percent worst case is unexplained; inspect which parameters and grid cells cause it.
