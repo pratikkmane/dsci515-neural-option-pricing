@@ -87,6 +87,22 @@ def test_baselines_fit_and_predict():
     assert B.PCAGaussianProcess(n_components=4, max_train=150, n_hyper=100, restarts=0).fit(p_tr, tr).info["capped"] is True
 
 
+def test_refit_recomputes_component_count_and_ridge_guard():
+    p1 = H.sobol_params(300, seed=61); p2 = H.sobol_params(300, seed=62)
+    m = B.PCAGradientBoosting(max_iter=20)
+    m.fit(p1, data.surfaces(p1)[0])
+    k1 = m.k
+    noisy = data.surfaces(p2)[0] * (1 + 0.05 * np.random.default_rng(0).standard_normal((300, 88)))
+    m.fit(p2, noisy)                                                  # a noisier surface needs more components for the same target
+    assert m.k != k1 and m.k == m.surf.choose_k(noisy, m.target, m.k_max)   # recomputed, not the stale first value
+    try:
+        B.RidgePoly().fit(p1[:20], data.surfaces(p1[:20])[0])
+    except ValueError as e:
+        assert "too few training rows" in str(e)
+    else:
+        raise AssertionError("expected ValueError")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

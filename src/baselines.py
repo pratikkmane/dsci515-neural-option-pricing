@@ -114,6 +114,8 @@ class RidgePoly:
                     errs[a].append(np.mean((z[va] - pred) ** 2))
             for a in self.alphas:
                 cv_mse[(d, a)] = float(np.mean(errs[a]))
+        if not cv_mse:
+            raise ValueError(f"too few training rows ({len(x)}) for the requested polynomial degrees {self.degrees}")
         (d, a), best = min(cv_mse.items(), key=lambda kv: kv[1])
         self.poly = PolynomialFeatures(d, include_bias=False)
         phi = self.poly.fit_transform(x)
@@ -134,13 +136,13 @@ class PCAGradientBoosting:
     name = "gradient_boosting"
 
     def __init__(self, n_components=None, target_rmse=5e-4, k_max=40, max_iter=500, learning_rate=0.1, max_leaf_nodes=31, seed=0):
-        self.k, self.target, self.k_max = n_components, target_rmse, k_max
+        self.k_arg, self.target, self.k_max = n_components, target_rmse, k_max
         self.max_iter, self.lr, self.leaves, self.seed = max_iter, learning_rate, max_leaf_nodes, seed
 
     def fit(self, params, iv):
         x = data.scale_params(params)
         self.surf = _Surface(10).fit(iv)
-        self.k = self.k or self.surf.choose_k(iv, self.target, self.k_max)
+        self.k = self.k_arg or self.surf.choose_k(iv, self.target, self.k_max)
         s = self.surf.scores(self.k)
         self.models = [HistGradientBoostingRegressor(max_iter=self.max_iter, learning_rate=self.lr, max_leaf_nodes=self.leaves,
                                                      early_stopping=True, validation_fraction=0.15, n_iter_no_change=20,
@@ -159,13 +161,13 @@ class PCAGaussianProcess:
     name = "gaussian_process"
 
     def __init__(self, n_components=None, target_rmse=5e-4, k_max=40, max_train=3000, n_hyper=800, restarts=1, seed=0):
-        self.k, self.target, self.k_max = n_components, target_rmse, k_max
+        self.k_arg, self.target, self.k_max = n_components, target_rmse, k_max
         self.max_train, self.n_hyper, self.restarts, self.seed = max_train, n_hyper, restarts, seed
 
     def fit(self, params, iv):
         x = data.scale_params(params)
         self.surf = _Surface(10).fit(iv)
-        self.k = self.k or self.surf.choose_k(iv, self.target, self.k_max)
+        self.k = self.k_arg or self.surf.choose_k(iv, self.target, self.k_max)
         s = self.surf.scores(self.k)
         rng = np.random.default_rng(self.seed)
         use = rng.permutation(len(x))[:self.max_train]
