@@ -203,7 +203,8 @@ class PointwiseSurrogate:
         """Price, dC/dK and d2C/dK2 (the implied density) by autograd, each (n, T, K)."""
         params = np.atleast_2d(params)
         res = [[], [], []]
-        for sl in self._chunks(len(params), strikes, maturities):
+        # the double-backward graph is much larger than a forward pass, so use small chunks (about 0.5 GB for a 128 x 4 net)
+        for sl in self._chunks(len(params), strikes, maturities, max_rows=25_000):
             theta, k, t = self._grid_inputs(params[sl], strikes, maturities)
             ks = scale_k(k).clone().requires_grad_(True)
             kk = (ks + 1) / 2 * (K_HI - K_LO) + K_LO                  # strike as a function of the input being differentiated

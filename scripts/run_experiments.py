@@ -52,7 +52,12 @@ def main():
     with ProcessPoolExecutor(a.processes, mp_context=mp.get_context("spawn")) as ex:
         futs = [ex.submit(experiment.run_task, (r, a.out_dir)) for r in todo]
         for f in as_completed(futs):
-            tag, s, secs, err = f.result()
+            try:
+                tag, s, secs, err = f.result()
+            except Exception as e:                           # e.g. a worker killed for lack of memory breaks the whole pool
+                print(f"POOL BROKEN after {done} runs ({type(e).__name__}: {e}). Re-run the plan: finished runs are kept. "
+                      "If it was memory, use fewer --processes.", flush=True)
+                sys.exit(2)
             done += 1
             if err:
                 failed.append(tag)
