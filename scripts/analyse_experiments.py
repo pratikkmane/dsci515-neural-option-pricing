@@ -52,10 +52,17 @@ def pct(x):
     return "n/a" if x is None or np.isnan(x) else f"{100 * x:.1f}%"
 
 
-def ci_str(t, scale=1.0, digits=4, percent=False):
+REGION_N = {}          # surfaces per region of the test set, filled in main(): "all", "interior", "boundary"
+
+
+def ci_str(t, scale=1.0, digits=4, percent=False, region=None, seeds=None):
+    """Format (mean, lo, hi). For a rate that is exactly zero a bootstrap interval is [0, 0] and means nothing, so when the region
+    and number of seeds are given it shows the rule-of-three 95 percent upper bound on the rate (surfaces treated as independent)."""
     m, lo, hi = t
     if np.isnan(m):
         return "n/a"
+    if percent and m == 0 and region and seeds:
+        return f"0 (<{100 * 3 / (seeds * REGION_N[region]):.3f}%)"
     if percent:
         return f"{100 * m:.1f}% [{100 * lo:.1f}, {100 * hi:.1f}]"
     return f"{m * scale:.{digits}f} [{lo * scale:.{digits}f}, {hi * scale:.{digits}f}]"
@@ -290,8 +297,8 @@ def size_noise_table(rows, name):
     if not rs:
         return ""
     body = [[f"{r['n']:,}", f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["rmse_iv"], 1e3, 2),
-             ci_str(r["viol_all"], percent=True), ci_str(r["viol_interior"], percent=True), ci_str(r["viol_boundary"], percent=True),
-             pct(r["conv_rate"][0]), pct(r["cal_rate"][0]), pct(r["sev_1e4"][0])] for r in rs]
+             ci_str(r["viol_all"], percent=True, region="all", seeds=r["seeds"]), ci_str(r["viol_interior"], percent=True, region="interior", seeds=r["seeds"]),
+             ci_str(r["viol_boundary"], percent=True, region="boundary", seeds=r["seeds"]), pct(r["conv_rate"][0]), pct(r["cal_rate"][0]), pct(r["sev_1e4"][0])] for r in rs]
     return md_table(["n", "noise", "seeds", "RMSE (vol, x1e-3)", "violating: all", "interior", "boundary", "conv", "cal", ">1e-4"], body)
 
 
@@ -336,6 +343,8 @@ def main():
     if not groups:
         sys.exit("no runs found")
     test = data.load_test()
+    for k, m in (("all", np.ones(len(test["region"]), bool)), ("interior", test["region"] == "interior"), ("boundary", test["region"] == "boundary")):
+        REGION_N[k] = int(m.sum())
     from experiment import N_SUBSET
     truth_sub = test["iv"][:N_SUBSET]
     rows, store = aggregate(groups, test["region"], truth_sub, a.run_dir, rng)
@@ -375,6 +384,8 @@ def main():
         cell = f"{100 * d[0]:+.2f} pts [{100 * d[1]:+.2f}, {100 * d[2]:+.2f}]"
         if d[1] > 0 or d[2] < 0:
             cell = f"**{cell}**"
+        if d[0] == 0 and d[1] == 0 and d[2] == 0:
+            cell = "0 (no violating interior surface in either setting)"
         body.append([t["name"], t["contrast"], pct(t["rate_a"]), pct(t["rate_b"]), cell])
     md.append(md_table(["model", "contrast", "rate a", "rate b", "difference (a minus b for size; b minus a for noise), interior"], body))
     md += ["\n## Bias and variance across seeds\n",
@@ -392,7 +403,7 @@ def main():
     pw = [r for r in rows if r["model"] == "pointwise"]
     if pw:
         md += ["\n## Pointwise networks\n"]
-        body = [[r["name"], f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["rmse_iv"], 1e3, 2), ci_str(r["viol_all"], percent=True), ci_str(r["viol_interior"], percent=True),
+        body = [[r["name"], f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["rmse_iv"], 1e3, 2), ci_str(r["viol_all"], percent=True, region="all", seeds=r["seeds"]), ci_str(r["viol_interior"], percent=True, region="interior", seeds=r["seeds"]),
                  ci_str(r["dense_viol"], percent=True), ci_str(r["neg_density_share"], percent=True), pct(r["unusable"][0])] for r in sorted(pw, key=lambda r: (r["name"], r["noise"]))]
         md.append(md_table(["model", "noise", "seeds", "RMSE (x1e-3)", "violating: base grid", "interior", "violating: dense grid", "negative autodiff density share", "unusable cells"], body))
     os.makedirs(os.path.dirname(a.docs_out), exist_ok=True)
