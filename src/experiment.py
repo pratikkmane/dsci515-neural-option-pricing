@@ -162,17 +162,17 @@ def plan(name, seeds=10):
         return [Run("gradient_boosting", n, z, s) for n in SIZES[:3] for z in (0.0, 0.02) for s in S]
     if name == "gp":                  # capped at 3,000 training points, so only two sizes and few seeds
         return [Run("gaussian_process", n, z, s) for n in SIZES[:2] for z in (0.0, 0.02) for s in range(3)]
-    if name == "architecture":        # one factor at a time around the base network, at n = 10,000
+    if name == "architecture":        # one factor at a time around the base network, at n = 5,000
         base = dict(n=10000)
         cfgs = ([dict(depth=d) for d in (2, 4, 6)] + [dict(width=w) for w in (64, 128, 256)] +
                 [dict(activation=a) for a in ("softplus", "relu")])
         return [Run("grid_net", noise=z, seed=s, **base, **c) for c in cfgs for z in (0.0, 0.02) for s in range(5)]
-    if name == "pointwise":           # representation: pointwise nets, price or vol output, at n = 10,000
+    if name == "pointwise":           # representation: pointwise nets, price or vol output, at n = 5,000
         cfgs = [("iv", "softplus"), ("iv", "elu"), ("price", "softplus"), ("price", "elu"), ("price", "relu")]
         return [Run("pointwise", 10000, z, s, target=t, activation=a, **POINTWISE_BUDGET[t])
                 for (t, a) in cfgs for z in (0.0, 0.02) for s in range(5)]
-    if name == "repairs":             # step 6 (H3): pointwise price networks, softplus, at n = 10,000
-        base = dict(n=10000, target="price", activation="softplus", **POINTWISE_BUDGET["price"])
+    if name == "repairs":             # step 6 (H3): pointwise price networks, softplus, at n = 5,000
+        base = dict(n=5000, target="price", activation="softplus", **POINTWISE_BUDGET["price"])
         cfgs = ([dict()] + [dict(deriv_weight=w) for w in REPAIR_WEIGHTS["deriv"]] + [dict(deriv_weight=1.0, deriv_terms="slope")] +
                 [dict(penalty_weight=w) for w in REPAIR_WEIGHTS["penalty"]])
         return [Run("pointwise", noise=z, seed=s, **base, **c) for c in cfgs for z in (0.0, 0.02) for s in range(min(seeds, 5))]
@@ -180,7 +180,7 @@ def plan(name, seeds=10):
 
 
 # Weights of the repairs, fixed from the validation pilot (results/pilot_repairs.json, docs/repairs.md) before the main runs.
-REPAIR_WEIGHTS = {"deriv": (0.1, 1.0, 10.0), "penalty": (0.1, 1.0, 10.0, 100.0)}
+REPAIR_WEIGHTS = {"deriv": (0.1, 1.0), "penalty": (1.0, 10.0, 100.0, 1000.0)}
 PLAN_DIRS = {"repairs": os.path.join(data.ROOT, "results", "repairs", "runs")}
 
 
