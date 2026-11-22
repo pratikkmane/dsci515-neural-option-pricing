@@ -144,7 +144,10 @@ def local_error_auc(pred_call, pred_iv, test, tol=None, min_positive=30):
       pointwise_iv      largest absolute implied vol error (NaN where the predicted vol is unusable: those stencils are dropped)
       curvature_abs     absolute error of the butterfly price (the discrete strike curvature)
       curvature_rel     that error divided by the exact butterfly price (floored at the tolerance): the relative curvature error
-    Pre-specified primary comparison (docs/experiments.md): curvature_abs against pointwise_price.
+    Primary comparison: curvature_rel against pointwise_iv (docs/experiments.md). It was first set as curvature_abs against
+    pointwise_price, then changed, before any main run, because a smoke test showed the price-unit errors are confounded with
+    scale: violations sit in the wings where prices are tiny, so the price-error AUC fell below 0.5 (0.26 for ridge). All four
+    measures are always reported.
     NOTE the link by construction: a violation needs the butterfly error to be negative and larger than the exact butterfly
     price, so a large curvature error is necessary for a violation. The comparison asks whether the curvature error
     carries more information than the level error, not whether the two are unrelated.
