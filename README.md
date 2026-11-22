@@ -9,7 +9,7 @@ Base paper: Horvath, Muguruza and Tomas (2021), *Deep learning volatility*, Quan
 ## Layout
 - `src/` library and reproduction code (`heston.py` exact pricer; `heston_reference.py` scalar cross-check)
 - `scripts/` experiment runners and validation
-- `tests/` fast checks, run with `python tests/test_heston.py`
+- `tests/` fast checks, run with `python tests/test_heston.py` and `python tests/test_violations.py`
 - `notebooks/` analysis notebooks
 - `data/` Heston training set from the base repo (12,000 samples: 5 parameters + 88 implied vols)
 - `results/` metrics and figures
@@ -33,6 +33,14 @@ python scripts/validate_heston.py        # reference check and comparison with t
 python tests/test_heston.py
 ```
 Method, validation and open questions are in `docs/heston_pricer.md`.
+
+## No-arbitrage detector (step 3)
+```
+python scripts/calibrate_violation_tolerance.py   # sets and checks the tolerance on exact surfaces
+python tests/test_violations.py
+```
+`src/violations.py` checks the three Carr and Madan conditions on call price surfaces. Definitions, the tolerance
+(1e-12) and its limits are in `docs/violations.md`.
 
 ## Team workflow
 - Work on a branch, open a pull request, get one review, then merge into `main`.

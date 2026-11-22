@@ -105,6 +105,11 @@ Done:
 - At maturities 0.1, 0.3, 0.9, 1.5 the shipped vols are slightly lower than exact (RMS 5.9e-4 at 0.1); cause unknown,
   simple interpolation between maturities does not explain it. About 1.9 percent of 88-grid cells (mostly maturity
   0.1, strikes 0.5 to 0.7) have out-of-the-money prices below 1e-11 and give NaN: mask them, do not fill.
+- Violation detector: src/violations.py (call spread, butterfly and calendar margins in price units, per-point flags,
+  negative probability mass), documented in docs/violations.md. Tolerance 1e-12, set from exact surfaces (largest
+  margin 2.3e-14, 32 parameter corners included); zero false positives in 31.7 million checks on fresh exact surfaces.
+  Sensitivity depends on the grid (finer strike step is more sensitive) and is lowest-headroom at short maturities and in
+  the wings, so always compare models on the same fixed grid and report dense and base grids separately.
 Not done / not verified:
 - NOT yet compared with the paper's reported Heston errors (arxiv.org is unreachable from the cloud environment;
   someone with access should read the Heston section and add the figures to docs/reproduction_comparison.md).
@@ -121,9 +126,8 @@ Not done / not verified:
 ## 7. Next tasks, in order
 1. Partly done: compared with the authors' notebook log. Still to do: the paper's own reported Heston errors.
 2. DONE: src/heston.py (see docs/heston_pricer.md). Open: find why src/heston_reference.py disagrees with it.
-3. Write src/violations.py: Carr and Madan checks (decreasing and convex in strike, increasing in maturity),
-   negative probability mass, tolerance calibrated on exact surfaces. Measured noise floor of exact dense-grid prices:
-   about 4e-14 (second difference in strike), so the tolerance should be set well above that and checked.
+3. DONE: src/violations.py (see docs/violations.md). Evaluate networks in float64; the implied-vol route cannot check
+   the 1.9 percent of base-grid cells with unresolved wing prices.
 4. Baselines (ridge, gradient boosting, Gaussian process) and a pointwise network with autodiff curvature.
 5. Manipulation grid with 10 seeds, then bootstrap CIs, AUC analysis, bias-variance decomposition.
 6. Repairs: derivative loss and arbitrage penalty; accuracy against violation frontier.
@@ -144,7 +148,7 @@ Not done / not verified:
 
 ## 9. Repository layout and commands
 - src/ library code (heston.py is the pricer to use; heston_reference.py is a scalar cross-check); scripts/ experiment
-  runners and validation; tests/ fast checks (python tests/test_heston.py); notebooks/ analysis; data/ Heston training
+  runners and validation; tests/ fast checks (python tests/test_heston.py, python tests/test_violations.py); notebooks/ analysis; data/ Heston training
   set; results/ metrics and figures; app/ demo; docs/ proposal and notes.
 - The submitted proposal is docs/DSCI-515_Project_Proposal_final.pdf.
 - Setup: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
