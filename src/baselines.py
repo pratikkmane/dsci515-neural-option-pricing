@@ -126,13 +126,25 @@ class RidgePoly:
         if not cv_mse:
             raise ValueError(f"too few training rows ({len(x)}) for the requested polynomial degrees {self.degrees}")
         (d, a), best = min(cv_mse.items(), key=lambda kv: kv[1])
-        self.poly = PolynomialFeatures(d, include_bias=False)
-        phi = self.poly.fit_transform(x)
-        self.m, self.s = phi.mean(0), phi.std(0) + 1e-12
-        a_mat = (phi - self.m) / self.s
+        # Final fit on all rows by accumulating the normal equations in blocks, so memory does not grow with n
+        # (a 250,000 x 792 feature matrix, built twice, needs about 5 GB).
+        self.poly = PolynomialFeatures(d, include_bias=False).fit(x[:2])
+        blocks = [slice(i, min(i + 20000, len(x))) for i in range(0, len(x), 20000)]
+        sums = sq = 0.0
+        for b in blocks:
+            f = self.poly.transform(x[b])
+            sums, sq = sums + f.sum(0), sq + (f ** 2).sum(0)
+        self.m = sums / len(x)
+        self.s = np.sqrt(np.maximum(sq / len(x) - self.m ** 2, 0.0)) + 1e-12
         self.ym = z.mean(0)
-        self.coef = np.linalg.solve(a_mat.T @ a_mat + a * len(x) * np.eye(a_mat.shape[1]), a_mat.T @ (z - self.ym))
-        self.info = dict(degree=d, alpha=a, cv_mse_standardised=best, n_features=phi.shape[1],
+        n_feat = self.poly.n_output_features_
+        gram, rhs = np.zeros((n_feat, n_feat)), np.zeros((n_feat, z.shape[1]))
+        for b in blocks:
+            a_blk = (self.poly.transform(x[b]) - self.m) / self.s
+            gram += a_blk.T @ a_blk
+            rhs += a_blk.T @ (z[b] - self.ym)
+        self.coef = np.linalg.solve(gram + a * len(x) * np.eye(n_feat), rhs)
+        self.info = dict(degree=d, alpha=a, cv_mse_standardised=best, n_features=n_feat,
                          cv_folds=self.cv, cv_rows=int(len(x_cv)), degrees_tried=[dd for dd in self.degrees if any(k[0] == dd for k in cv_mse)])
         return self
 
