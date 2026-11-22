@@ -68,7 +68,7 @@ What we know and do not know:
 ## Unresolved cells
 
 An out-of-the-money price below `PRICE_FLOOR = 1e-11` is not resolved by this method in double precision (the exact
-prices carry noise of about 2e-13, and 4,001 out-of-the-money prices on the shipped parameter sets come out slightly
+prices carry noise of about 2e-13, and about 4,000 out-of-the-money prices on the shipped parameter sets come out slightly
 negative). Such cells return NaN implied vol and are masked, not filled. On the shipped parameter sets that is 19,800 of
 1,056,000 cells (1.9 percent), nearly all at maturity 0.1: strike 0.5 in 98.5 percent of surfaces, 0.6 in 42 percent,
 0.7 in 13 percent and 1.5 in 5 percent (and 0.5 at maturity 0.3 in 6 percent).
