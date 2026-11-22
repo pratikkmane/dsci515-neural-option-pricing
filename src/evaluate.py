@@ -61,3 +61,50 @@ def evaluate_grid(pred, test):
         out[label] = dict(n_surfaces=int(sel.sum()), accuracy=accuracy(pred[sel], test["iv"][sel]),
                           violations=violations(pred[sel], test["iv"][sel]))
     return out
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Models that output call prices (pointwise networks)
+# ---------------------------------------------------------------------------------------------------------------------
+
+def prices_to_iv(call, true):
+    """Implied vols (n, 88) from predicted call prices (n, T, K); NaN where the exact surface is unresolved or inversion fails.
+
+    A predicted out-of-the-money price below PRICE_FLOOR (including a negative one) cannot be inverted: it becomes NaN and is
+    counted as unusable by `evaluate_prices`.
+    """
+    k, t = H.STRIKES[None, None, :], H.MATURITIES[None, :, None]
+    otm = np.where(k >= 1, call, call - (1 - k))
+    iv = H.implied_vol_otm(otm, k, t).reshape(len(call), -1)
+    return np.where(np.isnan(true), np.nan, iv)
+
+
+def evaluate_prices(call, test):
+    """Accuracy and violations for predicted base-grid call prices (n, T, K), overall and by region.
+
+    Violations are checked on the prices directly, on cells where the exact surface is resolved. Accuracy is in implied vol on
+    cells where the predicted price can be inverted; the share that cannot is `unusable_cell_share`. `price_rmse` is over all cells.
+    """
+    out = {}
+    exact = test["call"].reshape(call.shape)
+    for label, sel in [("all", np.ones(len(call), bool))] + [(r, test["region"] == r) for r in ("interior", "boundary")]:
+        c, true_iv = call[sel], test["iv"][sel]
+        resolved = ~np.isnan(true_iv).reshape(c.shape)
+        iv = prices_to_iv(c, true_iv)
+        s = V.summarise(np.where(resolved, c, np.nan), H.STRIKES, H.MATURITIES)
+        s["unusable_cell_share"] = float(1 - (~np.isnan(iv)).sum() / resolved.sum())
+        out[label] = dict(n_surfaces=int(sel.sum()), accuracy=accuracy(iv, true_iv), violations=s,
+                          price_rmse=float(np.sqrt(np.mean((c - exact[sel]) ** 2))))
+    return out
+
+
+def curvature_report(d2, tol=0.0):
+    """Share of (surface, maturity, strike) points whose autodiff density d2C/dK2 is below -tol, and the mean negative density.
+
+    d2 is the autodiff second strike derivative (n, T, K) from PointwiseSurrogate.strike_derivatives. A net with ReLU units has
+    d2 = 0 almost everywhere, so this reports no negative density for it: use the finite-difference checks as well.
+    """
+    neg = d2 < -tol
+    return dict(negative_density_share=float(neg.mean()),
+                mean_negative_density=float(d2[neg].mean()) if neg.any() else 0.0,
+                surfaces_with_negative_density=float(neg.reshape(len(d2), -1).any(axis=1).mean()))
