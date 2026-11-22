@@ -99,6 +99,50 @@ def _lewis_integral(p, t, log_k, chunk_nodes=2_000_000):
     return np.sqrt(np.exp(log_k)) / np.pi * out
 
 
+def _lewis_integrals(p, t, log_k, chunk_nodes=2_000_000):
+    """The three integrals behind the call price and its strike derivatives, each (len(p), len(log_k)):
+        I0 = int Re[exp(iu k) phi] / (u^2 + 1/4) du                (price:   C = 1 - sqrt(K) I0 / pi)
+        I1 = int Re[(1/2 + iu) exp(iu k) phi] / (u^2 + 1/4) du     (slope:   dC/dK = -I1 / (pi sqrt(K)))
+        I2 = int Re[exp(iu k) phi] du                              (density: d2C/dK2 = I2 / (pi K^(3/2)))
+    with phi = phi(u - i/2) and k = ln K. They come from differentiating K^(1/2 + iu) under the integral sign, so they share the
+    characteristic function evaluations and the quadrature of `_lewis_integral`."""
+    out = np.empty((3, len(p), len(log_k)))
+    u_max = _truncation(t, p)
+    for U in np.unique(u_max):
+        rows = np.flatnonzero(u_max == U)
+        edges = np.concatenate([_HEAD_EDGES, np.arange(2 * _PANEL, U, _PANEL), [U]])
+        mid, half = (edges[1:] + edges[:-1]) / 2, (edges[1:] - edges[:-1]) / 2
+        u = (mid[:, None] + half[:, None] * _GL_X[None, :]).ravel()
+        w_raw = (half[:, None] * _GL_W[None, :]).ravel()
+        w = w_raw / (u * u + 0.25)
+        base = np.exp(1j * np.outer(u, log_k))
+        mats = (base * w[:, None], base * (w * (0.5 + 1j * u))[:, None], base * w_raw[:, None])
+        step = max(1, chunk_nodes // len(u))
+        for s in range(0, len(rows), step):
+            r = rows[s:s + step]
+            phi = _phi(u[None, :] - 0.5j, t, *[c[:, None] for c in p[r].T])
+            for i, m in enumerate(mats):
+                out[i, r] = (phi @ m).real
+    return out
+
+
+def call_strike_derivatives(params, strikes=STRIKES, maturities=MATURITIES):
+    """Exact call price, dC/dK and d2C/dK2 (the risk-neutral density of the terminal price), each (n, len(maturities), len(strikes)).
+
+    Computed from the same Fourier integral as the price (see `_lewis_integrals`). The price here is 1 - sqrt(K) I0 / pi for every
+    strike (no put-call switch), so it is accurate in absolute terms (about 1e-13) but not to the relative accuracy of `otm_prices`."""
+    params = np.atleast_2d(np.asarray(params, dtype=float))
+    strikes = np.asarray(strikes, dtype=float)
+    log_k = np.log(strikes)
+    out = np.empty((3, len(params), len(maturities), len(strikes)))
+    for j, t in enumerate(maturities):
+        i0, i1, i2 = _lewis_integrals(params, float(t), log_k)
+        out[0, :, j, :] = 1 - np.sqrt(strikes) * i0 / np.pi
+        out[1, :, j, :] = -i1 / (np.pi * np.sqrt(strikes))
+        out[2, :, j, :] = i2 / (np.pi * strikes ** 1.5)
+    return out[0], out[1], out[2]
+
+
 def otm_prices(params, strikes=STRIKES, maturities=MATURITIES):
     """Out-of-the-money option prices, shape (n, len(maturities), len(strikes)): put if K < 1, else call."""
     params = np.atleast_2d(np.asarray(params, dtype=float))

@@ -8,7 +8,16 @@ PointwiseSurrogate  input (5 scaled parameters, strike, maturity), one output. t
                     rows are the 88 grid points of each surface; evaluation can use any strikes and maturities in the box.
                     Strike derivatives of the price (slope and curvature = implied density) come from autograd.
 
-Everything is float64 and seeded. The derivative loss and the arbitrage penalty (step 6) are not here yet.
+Everything is float64 and seeded.
+
+Repairs (step 6, pointwise networks, docs/repairs.md). Both start from the squared-error price loss L0 (RMSE) and add one term:
+  derivative loss    + deriv_weight * s0 * [RMSE((dC/dK - slope)/s1) + RMSE((d2C/dK2 - density)/s2)], the derivatives taken by
+                     autograd at the training points and compared with exact (optionally noisy) strike-derivative labels;
+                     deriv_terms="slope" drops the density term. s0, s1, s2 are label scales (price RMS, slope RMS, density RMS
+                     per maturity) so that the weights are dimensionless.
+  arbitrage penalty  + penalty_weight * s0 * [mean(relu(dC/dK)/s1) + mean(relu(-d2C/dK2)/s2) + mean(relu(-dC/dT)/s0)], a one-sided
+                     hinge on the three Carr and Madan conditions at random (strike, maturity) points in the box with the batch's
+                     parameters. It uses no labels (the scales above are the only thing it takes from them).
 """
 from dataclasses import dataclass, asdict
 import numpy as np
@@ -35,6 +44,9 @@ class TrainConfig:
     lr: float = 1e-3
     seed: int = 0
     schedule: str = "constant"       # "cosine" decays the learning rate to 1 percent of lr over training
+    deriv_weight: float = 0.0        # weight of the derivative loss (pointwise networks only)
+    deriv_terms: str = "both"        # "both" (slope and density) or "slope"
+    penalty_weight: float = 0.0      # weight of the arbitrage penalty (pointwise networks only)
 
 
 def grid_batch_size(n):
@@ -73,6 +85,14 @@ def bs_call(sigma, k, t):
     sd = sigma * torch.sqrt(t)
     d1 = -torch.log(k) / sd + 0.5 * sd
     return torch.special.ndtr(d1) - k * torch.special.ndtr(d1 - sd)
+
+
+def unscale_k(ks):
+    return (ks + 1) / 2 * (K_HI - K_LO) + K_LO
+
+
+def unscale_t(ts):
+    return (ts + 1) / 2 * (T_HI - T_LO) + T_LO
 
 
 def masked_rmse(pred, y, mask):
@@ -138,9 +158,40 @@ class PointwiseSurrogate:
         return bs_call(sigma, k, t)
 
     # --- training --------------------------------------------------------------------------------------------------
-    def fit(self, params, call, iv=None):
-        """call (n, 88) exact (or noisy) call prices. target='iv' also needs iv (n, 88) with NaN where unresolved."""
+    def _price_and_derivs(self, theta, ks_in, ts_in, density=True, calendar=False):
+        """Price, dC/dK, d2C/dK2 (if density) and dC/dT (if calendar) at the given inputs by autograd, keeping the graph so that
+        a loss on the derivatives can be back-propagated. Derivatives are in strike and maturity units."""
+        ks = ks_in.detach().clone().requires_grad_(True)
+        ts = ts_in.detach().clone().requires_grad_(calendar)
+        price = self._price(theta, ks, ts, unscale_k(ks), unscale_t(ts))
+        wrt = [ks] + ([ts] if calendar else [])
+        g = torch.autograd.grad(price.sum(), wrt, create_graph=True)
+        d1 = g[0] * (2 / (K_HI - K_LO))
+        d2 = None
+        if density:
+            # a network that is piecewise linear in the strike (ReLU) has no dependence of dC/dK on K: the second derivative is 0
+            g2 = torch.autograd.grad(g[0].sum(), ks, create_graph=True, allow_unused=True)[0] if g[0].requires_grad else None
+            d2 = (torch.zeros_like(ks) if g2 is None else g2) * (2 / (K_HI - K_LO)) ** 2
+        dt = g[1] * (2 / (T_HI - T_LO)) if calendar else None
+        return price, d1, d2, dt
+
+    def arbitrage_penalty(self, theta, k, t):
+        """Mean one-sided violation of the three Carr and Madan conditions at the given (strike, maturity) points, in label scales:
+        relu(dC/dK) / s1 + relu(-d2C/dK2) / s2(t) + relu(-dC/dT) / s0. Zero for a surface that satisfies all three there."""
+        _, p1, p2, pt = self._price_and_derivs(theta, scale_k(k), scale_t(t), density=True, calendar=True)
+        s2 = torch.tensor(np.interp(t.detach().numpy(), H.MATURITIES, self.s2_by_maturity), dtype=DTYPE)
+        return (torch.relu(p1) / self.s1).mean() + (torch.relu(-p2) / s2).mean() + (torch.relu(-pt) / self.s0).mean()
+
+    def fit(self, params, call, iv=None, deriv=None):
+        """call (n, 88) exact (or noisy) call prices. target='iv' also needs iv (n, 88) with NaN where unresolved.
+        deriv = dict(slope (n, 88), density (n, 88)) strike-derivative labels, needed when deriv_weight or penalty_weight > 0
+        (the penalty uses them only to set scales)."""
         c = self.cfg
+        use_d, use_p = c.deriv_weight > 0, c.penalty_weight > 0
+        if (use_d or use_p) and deriv is None:
+            raise ValueError("deriv_weight and penalty_weight need strike-derivative labels (for the loss, or for the scales)")
+        if (use_d or use_p) and self.target != "price":
+            raise ValueError("the repairs are implemented for target='price' (their weights are scaled by the price level)")
         torch.manual_seed(c.seed)
         n = len(params)
         theta = torch.tensor(data.scale_params(params), dtype=DTYPE)
@@ -152,28 +203,55 @@ class PointwiseSurrogate:
             self.scale_iv = float(np.nanmean(iv))
             flat = torch.tensor(iv, dtype=DTYPE).reshape(-1)
             rows, y = torch.nonzero(~torch.isnan(flat))[:, 0], flat
+        if use_d or use_p:
+            nk = len(H.STRIKES)
+            self.s0 = float(np.sqrt(np.mean(np.asarray(call) ** 2)))
+            self.s1 = float(np.sqrt(np.mean(np.asarray(deriv["slope"]) ** 2)))
+            dens = np.asarray(deriv["density"]).reshape(n, len(H.MATURITIES), nk)
+            self.s2_by_maturity = np.sqrt(np.mean(dens ** 2, axis=(0, 2)))
+            s2_cell = torch.tensor(np.repeat(self.s2_by_maturity, nk), dtype=DTYPE)
+            slope_y = torch.tensor(deriv["slope"], dtype=DTYPE).reshape(-1)
+            dens_y = torch.tensor(deriv["density"], dtype=DTYPE).reshape(-1)
         self.net = mlp(7, 1, c.width, c.depth, c.activation)
         opt = torch.optim.Adam(self.net.parameters(), lr=c.lr)
         sched = make_scheduler(opt, c, -(-len(rows) // c.batch_size))
-        self.history = []
+        self.history, self.history_terms = [], []
         for _ in range(c.epochs):
             perm = rows[torch.randperm(len(rows))]
-            total, steps = 0.0, 0
+            total, steps, terms = 0.0, 0, np.zeros(3)
             for i in range(0, len(perm), c.batch_size):
                 r = perm[i:i + c.batch_size]
                 s, cell = r // N_CELLS, r % N_CELLS
                 k, t = k_all[cell], t_all[cell]
                 opt.zero_grad()
-                out = self._raw(theta[s], scale_k(k), scale_t(t))
-                pred = out if self.target == "price" else nn.functional.softplus(out) * self.scale_iv + 1e-6
-                loss = torch.sqrt(torch.mean((pred - y[r]) ** 2))
+                if use_d:
+                    price, d1, d2, _ = self._price_and_derivs(theta[s], scale_k(k), scale_t(t), density=c.deriv_terms == "both")
+                    l0 = torch.sqrt(torch.mean((price - y[r]) ** 2))
+                    ld = torch.sqrt(torch.mean(((d1 - slope_y[r]) / self.s1) ** 2))
+                    if c.deriv_terms == "both":
+                        ld = ld + torch.sqrt(torch.mean(((d2 - dens_y[r]) / s2_cell[cell]) ** 2))
+                    loss = l0 + c.deriv_weight * self.s0 * ld
+                else:
+                    out = self._raw(theta[s], scale_k(k), scale_t(t))
+                    pred = out if self.target == "price" else nn.functional.softplus(out) * self.scale_iv + 1e-6
+                    l0 = torch.sqrt(torch.mean((pred - y[r]) ** 2))
+                    ld, loss = torch.zeros(()), l0
+                lp = torch.zeros(())
+                if use_p:
+                    kr = K_LO + (K_HI - K_LO) * torch.rand(len(r), dtype=DTYPE)
+                    tr = T_LO + (T_HI - T_LO) * torch.rand(len(r), dtype=DTYPE)
+                    lp = self.arbitrage_penalty(theta[s], kr, tr)
+                    loss = loss + c.penalty_weight * self.s0 * lp
                 loss.backward()
                 opt.step()
                 if sched:
                     sched.step()
                 total, steps = total + loss.item(), steps + 1
+                terms += [l0.item(), ld.item(), lp.item()]
             self.history.append(total / steps)
+            self.history_terms.append((terms / steps).tolist())
         self.info = dict(config=asdict(c), target=self.target, final_train_loss=self.history[-1],
+                         final_terms_price_deriv_penalty=self.history_terms[-1],
                          n_parameters=sum(p.numel() for p in self.net.parameters()))
         return self
 

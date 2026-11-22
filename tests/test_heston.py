@@ -54,6 +54,21 @@ def test_shapes_and_grid_layout():
     assert (s >= H.LB).all() and (s <= H.UB).all()
 
 
+def test_strike_derivatives_match_finite_differences():
+    # slope and density from the Fourier integral against central differences of the validated pricer; the difference must
+    # shrink like h^2 (a wrong formula would not)
+    p = H.sobol_params(12, seed=5)
+    k, t = H.STRIKES, H.MATURITIES
+    _, d1, d2 = H.call_strike_derivatives(p, k, t)
+    err = []
+    for h in (2e-3, 1e-3):
+        c = H.call_prices(p, np.concatenate([k - h, k, k + h]), t).reshape(len(p), len(t), 3, len(k))
+        err.append((abs((c[:, :, 2] - c[:, :, 0]) / (2 * h) - d1).max(), abs((c[:, :, 2] - 2 * c[:, :, 1] + c[:, :, 0]) / h ** 2 - d2).max()))
+    assert err[1][0] < 1e-4 and err[1][1] < 5e-3
+    assert 3.0 < err[0][0] / err[1][0] < 5.0 and 3.0 < err[0][1] / err[1][1] < 5.0
+    assert d1.max() <= 1e-12 and d2.min() > -1e-10          # decreasing in strike, non-negative density
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

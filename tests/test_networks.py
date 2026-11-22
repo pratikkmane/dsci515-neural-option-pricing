@@ -122,6 +122,71 @@ def test_evaluate_prices_on_exact_prices():
     assert E.evaluate_prices(bad, test)["all"]["violations"]["unusable_cell_share"] > 0.05
 
 
+def _tiny(n=60, seed=0, **kw):
+    tr = data.load_train(n, seed)
+    dv = data.load_derivs("train", tr["params"], seed=seed)
+    cfg = N.TrainConfig(width=32, depth=2, activation="softplus", epochs=25, batch_size=512, schedule="cosine", seed=seed, **kw)
+    return N.PointwiseSurrogate(cfg, target="price").fit(tr["params"], tr["call"], tr["iv"], dv), tr, dv
+
+
+@need_torch
+def test_repair_derivatives_agree_with_strike_derivatives():
+    m, tr, _ = _tiny(20, deriv_weight=0.1)
+    p = tr["params"][:3]
+    theta, k, t = m._grid_inputs(p, H.STRIKES, H.MATURITIES)
+    price, d1, d2, dt = m._price_and_derivs(theta, N.scale_k(k), N.scale_t(t), density=True, calendar=True)
+    c, e1, e2 = m.strike_derivatives(p)
+    assert np.allclose(d1.detach().numpy().reshape(e1.shape), e1, atol=1e-10)
+    assert np.allclose(d2.detach().numpy().reshape(e2.shape), e2, atol=1e-8)
+    assert np.isfinite(dt.detach().numpy()).all()
+
+
+@need_torch
+def test_derivative_loss_improves_density_fit():
+    exact = data.load_derivs("train", data.load_train(60, 0)["params"], seed=0)["density"].reshape(60, 8, 11)
+    errs = []
+    for w in (0.0, 1.0):
+        m, tr, _ = _tiny(60, deriv_weight=w)
+        _, _, d2 = m.strike_derivatives(tr["params"])
+        errs.append(np.sqrt(np.mean((d2 - exact) ** 2)))
+    assert errs[1] < errs[0]
+
+
+@need_torch
+def test_penalty_is_zero_on_valid_and_positive_on_violating_surfaces():
+    m, tr, _ = _tiny(20, penalty_weight=1.0)
+    assert m.history_terms[0][2] > 0                      # an untrained network violates somewhere, and the term sees it
+    m.s0, m.s1, m.s2_by_maturity = 1.0, 1.0, np.ones(len(H.MATURITIES))
+    theta = torch.zeros(50, 5, dtype=N.DTYPE)
+    k = torch.linspace(0.6, 1.4, 50, dtype=N.DTYPE)
+    t = torch.linspace(0.2, 1.8, 50, dtype=N.DTYPE)
+
+    class Fixed(torch.nn.Module):             # column 5 is the scaled strike, column 6 the scaled maturity
+        def __init__(self, f):
+            super().__init__(); self.f = f
+        def forward(self, x):
+            return self.f(x[:, 5], x[:, 6])[:, None]
+
+    def penalty(f):
+        m.net = Fixed(f)
+        return float(m.arbitrage_penalty(theta, k, t).detach())
+    assert penalty(lambda ks, ts: (1 - ks) * (2 + ts) ** 0.5) == 0.0      # decreasing, convex in strike, increasing in maturity
+    assert penalty(lambda ks, ts: ks) > 0                                 # increasing in strike
+    assert penalty(lambda ks, ts: -ks ** 2 + 3 * (1 - ks)) > 0            # concave in strike
+    assert penalty(lambda ks, ts: (1 - ks) * (2 - ts)) > 0                # decreasing in maturity
+
+
+@need_torch
+def test_repairs_need_price_target_and_labels():
+    tr = data.load_train(20, 0)
+    for target, deriv, kw in (("iv", {"slope": tr["iv"], "density": tr["iv"]}, dict(deriv_weight=1.0)), ("price", None, dict(penalty_weight=1.0))):
+        try:
+            N.PointwiseSurrogate(N.TrainConfig(epochs=1, batch_size=512, **kw), target=target).fit(tr["params"], tr["call"], tr["iv"], deriv)
+        except ValueError:
+            continue
+        raise AssertionError("expected ValueError")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -35,6 +35,9 @@ class Run:
     batch_size: int = 0           # 0 means the default for the model and size
     lr: float = 1e-3
     schedule: str = "constant"
+    deriv_weight: float = 0.0     # step 6: weight of the derivative loss (pointwise price networks)
+    deriv_terms: str = "both"     # "both" (slope and density) or "slope"
+    penalty_weight: float = 0.0   # step 6: weight of the arbitrage penalty
 
     def tag(self):
         parts = [self.model]
@@ -46,17 +49,22 @@ class Run:
                 parts.append(f"e{self.epochs}")
             if self.schedule != "constant":
                 parts.append(self.schedule)
+        if self.deriv_weight:
+            parts.append(("dslope" if self.deriv_terms == "slope" else "deriv") + f"{self.deriv_weight:g}")
+        if self.penalty_weight:
+            parts.append(f"pen{self.penalty_weight:g}")
         parts += [f"n{self.n}", f"noise{self.noise:g}", f"seed{self.seed}"]
         return "_".join(parts)
 
 
 def _net_config(r):
     import networks as N
+    rep = dict(deriv_weight=r.deriv_weight, deriv_terms=r.deriv_terms, penalty_weight=r.penalty_weight)
     if r.model == "grid_net":
         return N.TrainConfig(width=r.width, depth=r.depth, activation=r.activation, lr=r.lr, seed=r.seed, schedule=r.schedule,
                              epochs=r.epochs or 200, batch_size=r.batch_size or N.grid_batch_size(r.n))
     return N.TrainConfig(width=r.width, depth=r.depth, activation=r.activation, lr=r.lr, seed=r.seed, schedule=r.schedule,
-                         epochs=r.epochs or POINTWISE_EPOCHS, batch_size=r.batch_size or 1024)
+                         epochs=r.epochs or POINTWISE_EPOCHS, batch_size=r.batch_size or 1024, **rep)
 
 
 POINTWISE_EPOCHS = 30     # fallback only; the pointwise plan always sets epochs from POINTWISE_BUDGET
@@ -86,7 +94,12 @@ def run_one(r, out_dir=RUN_DIR, workers=1, force=False):
         info = model.info
     elif r.model == "pointwise":
         import networks as N
-        model = N.PointwiseSurrogate(_net_config(r), target=r.target).fit(train["params"], call_train, iv_train)
+        deriv = None
+        if r.deriv_weight or r.penalty_weight:      # exact strike derivatives with the same multiplicative noise as the prices
+            dv = data.load_derivs("train", train["params"], seed=r.seed, workers=workers)
+            deriv = dict(slope=data.add_noise(dv["slope"], r.noise, 10_002 + r.seed),
+                         density=data.add_noise(dv["density"], r.noise, 10_003 + r.seed))
+        model = N.PointwiseSurrogate(_net_config(r), target=r.target).fit(train["params"], call_train, iv_train, deriv)
         pred_call_raw = model.predict_call(test["params"])
         info = model.info
     else:
@@ -104,6 +117,14 @@ def run_one(r, out_dir=RUN_DIR, workers=1, force=False):
         _, d1, d2 = model.strike_derivatives(sub, H.DENSE_STRIKES, H.DENSE_MATURITIES)
         dense = model.predict_call(sub, H.DENSE_STRIKES, H.DENSE_MATURITIES)
         import violations as V
+        _, b1, b2 = model.strike_derivatives(sub)                                  # base grid, against the exact derivatives
+        ex = data.load_derivs("test", sub, workers=workers)
+        scale2 = np.sqrt(np.mean(ex["density"].reshape(b2.shape) ** 2, axis=(0, 2)))[None, :, None]
+        extra["shape_error"] = dict(
+            n_surfaces=len(sub),
+            slope_rmse=float(np.sqrt(np.mean((b1 - ex["slope"].reshape(b1.shape)) ** 2))),
+            density_rmse_scaled=float(np.sqrt(np.mean(((b2 - ex["density"].reshape(b2.shape)) / scale2) ** 2))),
+            density_median_abs_rel_error=float(np.median(np.abs(b2 - ex["density"].reshape(b2.shape)) / np.maximum(ex["density"].reshape(b2.shape), 1e-3))))
         extra["dense_grid"] = dict(n_surfaces=len(sub), violations=V.summarise(dense, H.DENSE_STRIKES, H.DENSE_MATURITIES),
                                    autodiff_curvature=evaluate.curvature_report(d2),
                                    positive_strike_slope_share=float((d1 > 0).mean()))
@@ -150,7 +171,17 @@ def plan(name, seeds=10):
         cfgs = [("iv", "softplus"), ("iv", "elu"), ("price", "softplus"), ("price", "elu"), ("price", "relu")]
         return [Run("pointwise", 10000, z, s, target=t, activation=a, **POINTWISE_BUDGET[t])
                 for (t, a) in cfgs for z in (0.0, 0.02) for s in range(5)]
+    if name == "repairs":             # step 6 (H3): pointwise price networks, softplus, at n = 10,000
+        base = dict(n=10000, target="price", activation="softplus", **POINTWISE_BUDGET["price"])
+        cfgs = ([dict()] + [dict(deriv_weight=w) for w in REPAIR_WEIGHTS["deriv"]] + [dict(deriv_weight=1.0, deriv_terms="slope")] +
+                [dict(penalty_weight=w) for w in REPAIR_WEIGHTS["penalty"]])
+        return [Run("pointwise", noise=z, seed=s, **base, **c) for c in cfgs for z in (0.0, 0.02) for s in range(min(seeds, 5))]
     raise ValueError(f"unknown plan {name}")
+
+
+# Weights of the repairs, fixed from the validation pilot (results/pilot_repairs.json, docs/repairs.md) before the main runs.
+REPAIR_WEIGHTS = {"deriv": (0.1, 1.0, 10.0), "penalty": (0.1, 1.0, 10.0, 100.0)}
+PLAN_DIRS = {"repairs": os.path.join(data.ROOT, "results", "repairs", "runs")}
 
 
 # Chosen on the validation set (results/pilot_pointwise.json, docs/experiments.md) with softplus at 5,000 surfaces, by the rule fixed
