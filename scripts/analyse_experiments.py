@@ -112,14 +112,19 @@ def bias_variance(preds, truth, sel=None):
     if sel is not None:
         ok &= sel[:, None]
     if not ok.any() or preds.shape[0] < 2:
-        return dict(bias2=float("nan"), variance=float("nan"), mse=float("nan"), cells=0)
+        return dict(bias2=float("nan"), variance=float("nan"), mse=float("nan"), cells=0, bias2_corrected=float("nan"), variance_unbiased=float("nan"))
     p = preds[:, ok].astype(np.float64)
     t = truth[ok]
     mean = p.mean(axis=0)
     bias2 = float(np.mean((mean - t) ** 2))
     var = float(np.mean(p.var(axis=0)))
     mse = float(np.mean((p - t[None]) ** 2))
-    return dict(bias2=bias2, variance=var, mse=mse, cells=int(ok.sum()))
+    # The plug-in bias^2 of the seed average is inflated by (unbiased variance) / S, and the population variance is too small by
+    # a factor (S - 1) / S. The identity above is exact for the plug-in values; the corrected values estimate the true terms.
+    s_n = preds.shape[0]
+    var_unbiased = var * s_n / (s_n - 1)
+    return dict(bias2=bias2, variance=var, mse=mse, cells=int(ok.sum()),
+                bias2_corrected=bias2 - var_unbiased / s_n, variance_unbiased=var_unbiased)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -162,7 +167,8 @@ def aggregate(groups, test_region, truth_sub, run_dir, rng):
         bv_all = bias_variance(preds, truth_sub, None)
         bv_in = bias_variance(preds, truth_sub, interior[:truth_sub.shape[0]])
         bv_out = bias_variance(preds, truth_sub, ~interior[:truth_sub.shape[0]])
-        row.update(bias2=bv_all["bias2"], variance=bv_all["variance"], bv_mse=bv_all["mse"],
+        row.update(bias2=bv_all["bias2"], variance=bv_all["variance"], bv_mse=bv_all["mse"], bias2_corrected=bv_all["bias2_corrected"],
+                   variance_unbiased=bv_all["variance_unbiased"],
                    var_interior=bv_in["variance"], var_boundary=bv_out["variance"], bias2_interior=bv_in["bias2"], bias2_boundary=bv_out["bias2"])
         if key[0] == "pointwise":
             dg = [r["dense_grid"] for r in runs]
@@ -372,11 +378,13 @@ def main():
         body.append([t["name"], t["contrast"], pct(t["rate_a"]), pct(t["rate_b"]), cell])
     md.append(md_table(["model", "contrast", "rate a", "rate b", "difference (a minus b for size; b minus a for noise), interior"], body))
     md += ["\n## Bias and variance across seeds\n",
-           "Squared bias and variance of the implied vol prediction, averaged over resolved cells of the first test surfaces; MSE = bias^2 + variance. "
+           "Squared bias and variance of the implied vol prediction, averaged over resolved cells of the first test surfaces. MSE = plug-in bias^2 + plug-in "
+           "variance exactly; with S seeds the plug-in bias^2 is too large by (unbiased variance)/S, so corrected and unbiased columns are given too. "
            "Variance is across independent training sets.\n"]
-    body = [[r["name"], f"{r['n']:,}", f"{100 * r['noise']:g}%", f"{r['bias2']:.2e}", f"{r['variance']:.2e}",
-             f"{r['var_interior']:.2e}", f"{r['var_boundary']:.2e}"] for r in sorted(rows, key=lambda r: (r["name"], r["n"], r["noise"])) if r["seeds"] > 1]
-    md.append(md_table(["model", "n", "noise", "bias^2", "variance", "variance interior", "variance boundary"], body))
+    body = [[r["name"], f"{r['n']:,}", f"{100 * r['noise']:g}%", r["seeds"], f"{r['bv_mse']:.2e}", f"{r['bias2']:.2e}", f"{r['variance']:.2e}",
+             f"{r['bias2_corrected']:.2e}", f"{r['variance_unbiased']:.2e}", f"{r['var_interior']:.2e}", f"{r['var_boundary']:.2e}"]
+            for r in sorted(rows, key=lambda r: (r["name"], r["n"], r["noise"])) if r["seeds"] > 1]
+    md.append(md_table(["model", "n", "noise", "seeds", "MSE", "bias^2 (plug-in)", "variance (plug-in)", "bias^2 (corrected)", "variance (unbiased)", "plug-in variance, interior", "plug-in variance, boundary"], body))
     if links:
         md += ["\n### Does the variance term track the interior violation rate?\n",
                "Spearman correlation across the settings of one model, with a seed-bootstrap interval.\n",

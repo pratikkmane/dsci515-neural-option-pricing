@@ -53,7 +53,9 @@ the interior rate is clearly above the bound, rises as data shrink and noise gro
 the variance term tracks it; it is read as refuted where violations appear only in the boundary region.
 
 **Bias and variance.** For each setting, across seeds, squared bias and variance of the predicted implied vol on the first 2,000
-test surfaces, over cells resolved in the truth and valid for every seed; MSE = bias^2 + variance exactly. This differs from the
+test surfaces, over cells resolved in the truth and valid for every seed; MSE = bias^2 + variance exactly for the plug-in values. With S seeds the plug-in bias^2 is too large by (unbiased variance)/S and the
+plug-in variance too small by a factor (S - 1)/S, so corrected values are reported alongside (S = 10 means a 10 percent effect on
+the split, none on the total). This differs from the
 proposal's "bootstrap-trained models": because exact data can be generated without limit, independent training sets (one per
 seed) give the variance term directly and are cleaner than resampling one training set.
 
