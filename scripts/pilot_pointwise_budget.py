@@ -1,7 +1,10 @@
 """Choose the pointwise networks' training budget on the VALIDATION set (never the test set).
 
 Trains the same pointwise network with several budgets on one training set and reports validation accuracy, violation rate and
-time, so that the budget is fixed before any pointwise result on the test set is looked at. Output: results/pilot_pointwise.json.
+time, so that the budget is fixed before any pointwise result on the test set is looked at. Each result is saved as soon as it
+finishes. Selection rule (fixed before running): for each output type, the configuration with the lowest validation error of
+that output (implied vol RMSE for vol output, price RMSE for price output); a configuration within 5 percent of the best but
+cheaper in time is preferred. Output: results/pilot_pointwise.json.
 """
 import argparse, json, os, sys, time
 import numpy as np
@@ -27,25 +30,28 @@ def run(spec):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n-train", type=int, default=10000)
+    ap.add_argument("--n-train", type=int, default=5000)
     ap.add_argument("--targets", nargs="+", default=["iv", "price"])
-    ap.add_argument("--processes", type=int, default=4)
+    ap.add_argument("--processes", type=int, default=3)
     a = ap.parse_args()
     data.load_train(a.n_train, 0, 4); data.load_val(4)            # generate once before the processes start
-    grid = [("w64d3_e40_const", dict(width=64, depth=3, epochs=40, activation="softplus")),
-            ("w64d3_e40_cos", dict(width=64, depth=3, epochs=40, activation="softplus", schedule="cosine")),
-            ("w128d4_e40_cos", dict(width=128, depth=4, epochs=40, activation="softplus", schedule="cosine")),
-            ("w128d4_e100_cos", dict(width=128, depth=4, epochs=100, activation="softplus", schedule="cosine"))]
+    grid = [("w64d3_e30_const", dict(width=64, depth=3, epochs=30, activation="softplus")),
+            ("w64d3_e30_cos", dict(width=64, depth=3, epochs=30, activation="softplus", schedule="cosine")),
+            ("w128d4_e30_cos", dict(width=128, depth=4, epochs=30, activation="softplus", schedule="cosine")),
+            ("w64d3_e60_cos", dict(width=64, depth=3, epochs=60, activation="softplus", schedule="cosine"))]
     specs = [(n, t, kw, a.n_train) for t in a.targets for n, kw in grid]
-    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures import ProcessPoolExecutor, as_completed
+    results = []
     with ProcessPoolExecutor(a.processes) as ex:
-        results = list(ex.map(run, specs))
-    for r in results:
-        print(f"{r['target']:5s} {r['name']:16s} val RMSE_iv {r['val_rmse_iv']:.5f}  price RMSE {r['val_price_rmse']:.5f}  unusable {r['unusable_cell_share']:.3f}  "
-              f"violating {r['val_violating_surfaces']:.3f}  fit {r['fit_seconds']:.0f}s")
-    os.makedirs("results", exist_ok=True)
-    with open("results/pilot_pointwise.json", "w") as f:
-        json.dump(results, f, indent=2, default=float)
+        for f in as_completed([ex.submit(run, sp) for sp in specs]):
+            r = f.result()
+            results.append(r)
+            print(f"{r['target']:5s} {r['name']:16s} val RMSE_iv {r['val_rmse_iv']:.5f}  price RMSE {r['val_price_rmse']:.5f}  unusable {r['unusable_cell_share']:.3f}  "
+                  f"violating {r['val_violating_surfaces']:.3f}  fit {r['fit_seconds']:.0f}s", flush=True)
+            os.makedirs("results", exist_ok=True)
+            with open("results/pilot_pointwise.json", "w") as fh:
+                json.dump(results, fh, indent=2, default=float)
+    results.sort(key=lambda r: (r["target"], r["name"]))
 
 
 if __name__ == "__main__":

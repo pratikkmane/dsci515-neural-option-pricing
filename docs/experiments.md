@@ -20,6 +20,29 @@ afterwards are listed under "Changes after the fact". Results are generated into
 5. **Pointwise training budget** was chosen on a separate validation set (not the test set) before any pointwise test result was
    looked at: see "Pointwise budget".
 
+## Pointwise budget (validation pilot)
+
+Pilot on a separate validation set (2,000 surfaces, its own seed), training on 5,000 surfaces, softplus, one seed, four budgets
+per output type (`scripts/pilot_pointwise_budget.py`, `results/pilot_pointwise.json`). Rule fixed before running: per output
+type, the configuration with the lowest validation error of that output, preferring a cheaper one within 5 percent.
+
+| Output | Configuration | Validation RMSE (vol) | Validation price RMSE | Unusable cells | Violating surfaces | Fit time |
+| --- | --- | --- | --- | --- | --- | --- |
+| vol | 64 x 3, 30 epochs, constant lr | 0.00402 | 0.00084 | 0.2% | 1.5% | 82 s |
+| vol | 64 x 3, 30 epochs, cosine | 0.00711 | 0.00147 | 0.4% | 1.5% | 83 s |
+| vol | **128 x 4, 30 epochs, cosine** | **0.00247** | **0.00040** | 0.1% | 0.1% | 249 s |
+| vol | 64 x 3, 60 epochs, cosine | 0.00333 | 0.00067 | 0.2% | 0.9% | 158 s |
+| price | 64 x 3, 30 epochs, constant lr | 0.02871 | 0.00354 | 24.4% | 93.4% | 81 s |
+| price | 64 x 3, 30 epochs, cosine | 0.05688 | 0.00345 | 13.8% | 90.1% | 79 s |
+| price | 128 x 4, 30 epochs, cosine | 0.04462 | 0.00200 | 10.6% | 99.6% | 169 s |
+| price | **64 x 3, 60 epochs, cosine** | 0.04508 | **0.00182** | 13.3% | 98.7% | 115 s |
+
+Chosen: vol output 128 x 4, 30 epochs, cosine; price output 64 x 3, 60 epochs, cosine (used for every activation). Caveats: one
+seed; learning-rate schedule and network size were varied together, so this does not show that a cosine schedule helps (at equal
+size it did worse for vol output). **Price-output networks stayed inconsistent at every budget tried**, with most surfaces
+violating and 10 to 24 percent of cells not invertible to an implied vol, so that result is unlikely to be an artefact of this
+particular budget, though a much larger budget was not tried.
+
 ## Design
 
 Every run is one model, one training set (the first n rows of a scrambled Sobol sequence selected by the seed, so seeds are

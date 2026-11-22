@@ -59,8 +59,7 @@ def _net_config(r):
                          epochs=r.epochs or POINTWISE_EPOCHS, batch_size=r.batch_size or 1024)
 
 
-# Pointwise budget: set from the validation-set pilot (docs/experiments.md), not from test results.
-POINTWISE_EPOCHS = 40
+POINTWISE_EPOCHS = 30     # fallback only; the pointwise plan always sets epochs from POINTWISE_BUDGET
 
 
 def run_one(r, out_dir=RUN_DIR, workers=1, force=False):
@@ -149,12 +148,15 @@ def plan(name, seeds=10):
         return [Run("grid_net", noise=z, seed=s, **base, **c) for c in cfgs for z in (0.0, 0.02) for s in range(5)]
     if name == "pointwise":           # representation: pointwise nets, price or vol output, at n = 10,000
         cfgs = [("iv", "softplus"), ("iv", "elu"), ("price", "softplus"), ("price", "elu"), ("price", "relu")]
-        return [Run("pointwise", 10000, z, s, width=POINTWISE_WIDTH, depth=POINTWISE_DEPTH, target=t, activation=a,
-                    schedule=POINTWISE_SCHEDULE) for (t, a) in cfgs for z in (0.0, 0.02) for s in range(5)]
+        return [Run("pointwise", 10000, z, s, target=t, activation=a, **POINTWISE_BUDGET[t])
+                for (t, a) in cfgs for z in (0.0, 0.02) for s in range(5)]
     raise ValueError(f"unknown plan {name}")
 
 
-POINTWISE_WIDTH, POINTWISE_DEPTH, POINTWISE_SCHEDULE = 64, 3, "cosine"
+# Chosen on the validation set (results/pilot_pointwise.json, docs/experiments.md) with softplus at 5,000 surfaces, by the rule fixed
+# beforehand: lowest validation error of the model's own output. The same budget is used for the other activations.
+POINTWISE_BUDGET = {"iv": dict(width=128, depth=4, epochs=30, schedule="cosine"),
+                    "price": dict(width=64, depth=3, epochs=60, schedule="cosine")}
 
 
 def run_task(args):

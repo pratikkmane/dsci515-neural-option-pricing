@@ -1,0 +1,184 @@
+[
+  {
+    "name": "w64d3_e30_cos",
+    "target": "iv",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 30,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 83.20142149925232,
+    "final_train_loss": 0.0072888056269374765,
+    "val_rmse_iv": 0.007110776477499993,
+    "val_price_rmse": 0.0014684294208988774,
+    "unusable_cell_share": 0.0040934735792976795,
+    "val_violating_surfaces": 0.0155,
+    "val_severity": {
+      "1e-08": 0.0145,
+      "1e-06": 0.01,
+      "1e-04": 0.0025
+    }
+  },
+  {
+    "name": "w64d3_e30_const",
+    "target": "iv",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 30,
+      "activation": "softplus"
+    },
+    "fit_seconds": 82.48317193984985,
+    "final_train_loss": 0.004316792777574467,
+    "val_rmse_iv": 0.004023357210702594,
+    "val_price_rmse": 0.0008373070361465113,
+    "unusable_cell_share": 0.0015780637276713305,
+    "val_violating_surfaces": 0.0155,
+    "val_severity": {
+      "1e-08": 0.0105,
+      "1e-06": 0.0055,
+      "1e-04": 0.001
+    }
+  },
+  {
+    "name": "w64d3_e30_const",
+    "target": "price",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 30,
+      "activation": "softplus"
+    },
+    "fit_seconds": 80.57041931152344,
+    "final_train_loss": 0.0035646506910291453,
+    "val_rmse_iv": 0.028707670487812927,
+    "val_price_rmse": 0.003543692478289736,
+    "unusable_cell_share": 0.24387017162926183,
+    "val_violating_surfaces": 0.9345,
+    "val_severity": {
+      "1e-08": 0.9345,
+      "1e-06": 0.9345,
+      "1e-04": 0.9095
+    }
+  },
+  {
+    "name": "w64d3_e60_cos",
+    "target": "iv",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 60,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 158.43324208259583,
+    "final_train_loss": 0.0033789087440347257,
+    "val_rmse_iv": 0.00332864089134851,
+    "val_price_rmse": 0.0006694481953190234,
+    "unusable_cell_share": 0.0016017940092903915,
+    "val_violating_surfaces": 0.0095,
+    "val_severity": {
+      "1e-08": 0.006,
+      "1e-06": 0.002,
+      "1e-04": 0.0015
+    }
+  },
+  {
+    "name": "w64d3_e30_cos",
+    "target": "price",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 30,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 78.8419542312622,
+    "final_train_loss": 0.003463219539967302,
+    "val_rmse_iv": 0.056877048944542624,
+    "val_price_rmse": 0.0034483612969196426,
+    "unusable_cell_share": 0.13812803673447593,
+    "val_violating_surfaces": 0.901,
+    "val_severity": {
+      "1e-08": 0.901,
+      "1e-06": 0.901,
+      "1e-04": 0.872
+    }
+  },
+  {
+    "name": "w128d4_e30_cos",
+    "target": "iv",
+    "n_train": 5000,
+    "config": {
+      "width": 128,
+      "depth": 4,
+      "epochs": 30,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 248.75152015686035,
+    "final_train_loss": 0.0024968917729064825,
+    "val_rmse_iv": 0.002467109873638776,
+    "val_price_rmse": 0.0004016273603186605,
+    "unusable_cell_share": 0.0013229632002658143,
+    "val_violating_surfaces": 0.001,
+    "val_severity": {
+      "1e-08": 0.0005,
+      "1e-06": 0.0005,
+      "1e-04": 0.0005
+    }
+  },
+  {
+    "name": "w64d3_e60_cos",
+    "target": "price",
+    "n_train": 5000,
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "epochs": 60,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 114.80765438079834,
+    "final_train_loss": 0.0018272210433223875,
+    "val_rmse_iv": 0.045078924835462324,
+    "val_price_rmse": 0.0018193896606952464,
+    "unusable_cell_share": 0.13339384555146205,
+    "val_violating_surfaces": 0.987,
+    "val_severity": {
+      "1e-08": 0.987,
+      "1e-06": 0.9865,
+      "1e-04": 0.979
+    }
+  },
+  {
+    "name": "w128d4_e30_cos",
+    "target": "price",
+    "n_train": 5000,
+    "config": {
+      "width": 128,
+      "depth": 4,
+      "epochs": 30,
+      "activation": "softplus",
+      "schedule": "cosine"
+    },
+    "fit_seconds": 168.77698874473572,
+    "final_train_loss": 0.002012207888846473,
+    "val_rmse_iv": 0.044616629581195166,
+    "val_price_rmse": 0.0019962825201408165,
+    "unusable_cell_share": 0.10642438049133551,
+    "val_violating_surfaces": 0.996,
+    "val_severity": {
+      "1e-08": 0.996,
+      "1e-06": 0.996,
+      "1e-04": 0.992
+    }
+  }
+]
