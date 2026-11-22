@@ -1,5 +1,10 @@
 
-"""Reference Heston European call pricing using numerical integration."""
+"""Reference Heston European call pricing using numerical integration.
+
+Scalar, one price at a time (scipy quad). Kept as an independent cross-check of the fast vectorised pricer in
+src/heston.py, which is the one to use for generating data. Same convention: spot 1, zero rates, theta is the
+long-run variance (confirmed in docs/heston_pricer.md).
+"""
 
 import numpy as np
 from scipy.integrate import quad
