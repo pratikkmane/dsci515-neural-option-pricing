@@ -183,7 +183,7 @@ def aggregate(groups, test_region, truth_sub, run_dir, rng):
             row["dense_viol"] = seed_boot([d["violations"]["any_violation_surface_rate"] for d in dg], rng)
             row["neg_density_share"] = seed_boot([d["autodiff_curvature"]["negative_density_share"] for d in dg], rng)
         rows.append(row)
-        store[key] = dict(flags=flags, preds=preds, runs=runs)
+        store[key] = dict(flags=flags, preds=preds, runs=runs, seeds=[r["run"]["seed"] for r in runs])
     return rows, store
 
 
@@ -201,37 +201,42 @@ def flat(row):
 # H2 trends and the variance link
 # ---------------------------------------------------------------------------------------------------------------------
 
+def _common(store, ka, kb):
+    """Flags of two settings restricted to the seeds they share (so paired differences are valid when seed counts differ)."""
+    shared = sorted(set(store[ka]["seeds"]) & set(store[kb]["seeds"]))
+    ia = [store[ka]["seeds"].index(x) for x in shared]
+    ib = [store[kb]["seeds"].index(x) for x in shared]
+    return store[ka]["flags"][ia], store[kb]["flags"][ib], len(shared)
+
+
 def h2_trends(rows, store, test_region, rng):
-    """Paired differences in the interior violation rate: noise 0 -> max noise at each size, and smallest -> largest size at each noise."""
+    """Paired differences in the interior violation rate: noise 0 -> max noise at each size, and the smallest size -> each larger
+    size at each noise level. Settings are paired on the seeds they share."""
     interior = test_region == "interior"
-    ones = np.ones(len(test_region), bool)
     out = []
-    by = {}
-    for r in rows:
-        by.setdefault(r["name"], {})[(r["n"], r["noise"])] = r
-    for name, cells in by.items():
-        sizes, noises = sorted({k[0] for k in cells}), sorted({k[1] for k in cells})
-        if len(noises) < 2 and len(sizes) < 2:
+    names = sorted({r["name"] for r in rows})
+    for name in names:
+        keys = {(k[7], k[8]): k for k in store if name_of(k) == name}
+        sizes, noises = sorted({k[0] for k in keys}), sorted({k[1] for k in keys})
+        if len(sizes) < 2 and len(noises) < 2:
             continue
-        key_of = {(r["n"], r["noise"]): k for k, st in store.items() for r in [dict(n=k[7], noise=k[8], name=name_of(k))] if r["name"] == name}
-        for n in sizes:                              # noise effect at fixed size
-            if (n, noises[0]) in key_of and (n, noises[-1]) in key_of and len(noises) > 1:
-                ka, kb = key_of[(n, noises[0])], key_of[(n, noises[-1])]
-                if store[ka]["flags"].shape != store[kb]["flags"].shape:
-                    continue
-                ra, rb = boot_rates([store[ka]["flags"], store[kb]["flags"]], [interior, interior], rng)
-                out.append(dict(name=name, contrast=f"noise {noises[-1]:g} minus noise {noises[0]:g} at n={n}", region="interior",
-                                rate_a=float(store[ka]["flags"][:, interior].mean()), rate_b=float(store[kb]["flags"][:, interior].mean()),
-                                diff=interval(rb - ra)))
-        for z in noises:                             # size effect at fixed noise
-            if (sizes[0], z) in key_of and (sizes[-1], z) in key_of and len(sizes) > 1:
-                ka, kb = key_of[(sizes[0], z)], key_of[(sizes[-1], z)]
-                if store[ka]["flags"].shape != store[kb]["flags"].shape:
-                    continue
-                ra, rb = boot_rates([store[ka]["flags"], store[kb]["flags"]], [interior, interior], rng)
-                out.append(dict(name=name, contrast=f"n={sizes[0]} minus n={sizes[-1]} at noise {z:g}", region="interior",
-                                rate_a=float(store[ka]["flags"][:, interior].mean()), rate_b=float(store[kb]["flags"][:, interior].mean()),
-                                diff=interval(ra - rb)))
+
+        def add(contrast, ka, kb, sign):
+            fa, fb, n_shared = _common(store, ka, kb)
+            if n_shared < 3:
+                return
+            ra, rb = boot_rates([fa, fb], [interior, interior], rng)
+            out.append(dict(name=name, contrast=contrast + f" ({n_shared} shared seeds)", region="interior", rate_a=float(fa[:, interior].mean()),
+                            rate_b=float(fb[:, interior].mean()), diff=interval(sign * (rb - ra))))
+        if len(noises) > 1:
+            for n in sizes:
+                if (n, noises[0]) in keys and (n, noises[-1]) in keys:
+                    add(f"noise {noises[-1]:g} minus noise {noises[0]:g} at n={n}", keys[(n, noises[0])], keys[(n, noises[-1])], +1)
+        if len(sizes) > 1:
+            for z in noises:
+                for n in sizes[1:]:
+                    if (sizes[0], z) in keys and (n, z) in keys:
+                        add(f"n={sizes[0]} minus n={n} at noise {z:g}", keys[(sizes[0], z)], keys[(n, z)], -1)
     return out
 
 

@@ -115,7 +115,19 @@ Done:
   and pointwise network with autodiff strike curvature), runners in scripts/. Documented in docs/models.md. Preliminary runs
   only (one seed, 2,000 and 10,000 training surfaces, noise 0, 0.5, 2 percent): they show the pipeline works and a hint that
   accuracy and violation rates can move apart under label noise. NOT evidence for any hypothesis yet.
+- Step 5 experiments: 482 runs (10 seeds for 2k to 50k, 5 for 250k, architecture and pointwise, 3 for the GP), pipeline in
+  src/experiment.py, scripts/run_experiments.py and scripts/analyse_experiments.py; protocol written before the results, in
+  docs/experiments.md (findings and limits there; generated tables in docs/experiments_results.md and results/tables/). Main
+  results, all descriptive and with caveats: (1) accuracy and violation rate are only loosely tied; (2) pointwise networks that
+  output the call price have a tiny price RMSE (0.3e-3 to 1.3e-3) but violate on 92 to 99 percent of surfaces, while vol-output
+  ones violate on 0.04 to 0.13 percent; (3) label noise raises violations far more than RMSE (grid network, 2k surfaces: 0.3 to
+  4.6 percent) and the effect vanishes with data (250k: no change); (4) ridge, boosting and GP keep about 1 to 2 percent
+  violating at any size (bias, not variance); (5) H2 holds for the base network only with noisy labels and small data (interior
+  violations 0.9 percent at 2k, none at 50k or 250k; none at all with clean labels); (6) wide networks with noisy labels violate
+  much more (6 to 9 percent against 1.5); (7) H1 is true by construction and informative only under noise. H3 not tested yet.
 Not done / not verified:
+- Step 6 (derivative loss and arbitrage penalty, H3) not started. Experiment parts are reduced in seeds and levels (see
+  docs/experiments.md, deviations); the 250k size has 5 seeds. Nothing is corrected for multiple comparisons.
 - The experiment grid (all sizes, noise levels, 10 seeds, activations, depths) has not been run; the 250k size is a stretch.
   Pointwise networks need a training budget set before they can be compared with grid networks (docs/models.md, decisions).
 - NOT yet compared with the paper's reported Heston errors (arxiv.org is unreachable from the cloud environment;
@@ -136,7 +148,7 @@ Not done / not verified:
 3. DONE: src/violations.py (see docs/violations.md). Evaluate networks in float64; the implied-vol route cannot check
    the 1.9 percent of base-grid cells with unresolved wing prices.
 4. DONE as code (see docs/models.md); preliminary runs only. Open: pointwise output (price or vol), training budget.
-5. Manipulation grid with 10 seeds, then bootstrap CIs, AUC analysis, bias-variance decomposition.
+5. DONE (see docs/experiments.md). Re-run: python scripts/run_experiments.py <plan>, then python scripts/analyse_experiments.py.
 6. Repairs: derivative loss and arbitrage penalty; accuracy against violation frontier.
 7. Demo (app/): Gradio app. Sliders for parameters; exact, network and baseline surfaces side by side; violating
    regions highlighted. Deploy as a Hugging Face Space (free tier is CPU only and sleeps when idle).
@@ -155,7 +167,7 @@ Not done / not verified:
 
 ## 9. Repository layout and commands
 - src/ library code (heston.py is the pricer to use; heston_reference.py is a scalar cross-check); scripts/ experiment
-  runners and validation; tests/ fast checks (test_heston.py, test_violations.py, test_baselines.py, test_networks.py); notebooks/ analysis; data/ Heston training
+  runners and validation; tests/ fast checks (test_heston.py, test_violations.py, test_baselines.py, test_networks.py, test_analysis.py); notebooks/ analysis; data/ Heston training
   set; results/ metrics and figures; app/ demo; docs/ proposal and notes.
 - The submitted proposal is docs/DSCI-515_Project_Proposal_final.pdf.
 - Setup: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
