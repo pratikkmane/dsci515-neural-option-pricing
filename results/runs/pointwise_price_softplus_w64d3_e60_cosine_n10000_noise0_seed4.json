@@ -1,0 +1,263 @@
+{
+  "run": {
+    "model": "pointwise",
+    "n": 10000,
+    "noise": 0.0,
+    "seed": 4,
+    "width": 64,
+    "depth": 3,
+    "activation": "softplus",
+    "target": "price",
+    "epochs": 60,
+    "batch_size": 0,
+    "lr": 0.001,
+    "schedule": "cosine"
+  },
+  "tag": "pointwise_price_softplus_w64d3_e60_cosine_n10000_noise0_seed4",
+  "fit_seconds": 186.2129361629486,
+  "evaluate_seconds": 30.269405603408813,
+  "model_info": {
+    "config": {
+      "width": 64,
+      "depth": 3,
+      "activation": "softplus",
+      "epochs": 60,
+      "batch_size": 1024,
+      "lr": 0.001,
+      "seed": 4,
+      "schedule": "cosine"
+    },
+    "target": "price",
+    "final_train_loss": 0.0009308814864161659,
+    "n_parameters": 8897
+  },
+  "n_test": 20000,
+  "train_nan_cell_share": 0.04222954545454546,
+  "results": {
+    "all": {
+      "n_surfaces": 20000,
+      "accuracy": {
+        "rmse_iv": 0.03826278239832651,
+        "p99_abs_error_iv": 0.2152379230702225,
+        "mean_rel_error_pct": 5.623432163086346,
+        "max_rel_error_pct": 387.23957529471977,
+        "rmse_iv_by_maturity": [
+          0.12460836671644035,
+          0.05132377646676474,
+          0.03514758904840835,
+          0.022731001483975083,
+          0.013341103339628685,
+          0.009744741911313175,
+          0.007371801549784533,
+          0.005936920603923273
+        ],
+        "cells_compared": 1492895
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 1525595,
+          "surface_rate": 0.79075,
+          "cell_rate": 0.02275046785024859,
+          "max_margin": 0.007391872703944452,
+          "mean_margin_when_violated": 0.0006432716051046326
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 1365596,
+          "surface_rate": 0.60935,
+          "cell_rate": 0.024541665324151505,
+          "max_margin": 0.0031025397480275788,
+          "mean_margin_when_violated": 0.00038308216096750016
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 1465932,
+          "surface_rate": 0.672,
+          "cell_rate": 0.0458193149477602,
+          "max_margin": 0.004542401036268517,
+          "mean_margin_when_violated": 0.0004085317174145363
+        },
+        "negative_mass": {
+          "mean_per_surface": 0.012838615542664586
+        },
+        "any_violation_surface_rate": 0.98825,
+        "severity_surface_rate": {
+          "1e-08": 0.98825,
+          "1e-06": 0.9881,
+          "1e-04": 0.94485
+        },
+        "unusable_cell_share": 0.1143216490319442
+      },
+      "price_rmse": 0.0009320069903628909
+    },
+    "interior": {
+      "n_surfaces": 6559,
+      "accuracy": {
+        "rmse_iv": 0.0340240543696236,
+        "p99_abs_error_iv": 0.19638927118531735,
+        "mean_rel_error_pct": 4.591369504773918,
+        "max_rel_error_pct": 231.8724238031676,
+        "rmse_iv_by_maturity": [
+          0.09690165644095282,
+          0.055288924359845566,
+          0.040343488937008634,
+          0.024270773728966934,
+          0.011775925783359587,
+          0.006061551730356325,
+          0.004251755777559808,
+          0.003740465452920079
+        ],
+        "cells_compared": 497654
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 504134,
+          "surface_rate": 0.7482847995121208,
+          "cell_rate": 0.01930835849198824,
+          "max_margin": 0.0036583817224048465,
+          "mean_margin_when_violated": 0.00041914953462915226
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 451662,
+          "surface_rate": 0.5656350053361793,
+          "cell_rate": 0.015303479150338084,
+          "max_margin": 0.0020135386336176536,
+          "mean_margin_when_violated": 0.00022013870521457655
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 484457,
+          "surface_rate": 0.6327184021954566,
+          "cell_rate": 0.03229595196271289,
+          "max_margin": 0.0020662294093196365,
+          "mean_margin_when_violated": 0.000276830629790214
+        },
+        "negative_mass": {
+          "mean_per_surface": 0.004639727795222209
+        },
+        "any_violation_surface_rate": 0.986278396096966,
+        "severity_surface_rate": {
+          "1e-08": 0.986278396096966,
+          "1e-06": 0.9861259338313767,
+          "1e-04": 0.9231590181430096
+        },
+        "unusable_cell_share": 0.1059133390585082
+      },
+      "price_rmse": 0.0007193164631670609
+    },
+    "boundary": {
+      "n_surfaces": 13441,
+      "accuracy": {
+        "rmse_iv": 0.04021508362596792,
+        "p99_abs_error_iv": 0.22395868182601822,
+        "mean_rel_error_pct": 6.139498231666534,
+        "max_rel_error_pct": 387.23957529471977,
+        "rmse_iv_by_maturity": [
+          0.13502755816778292,
+          0.049200191070528775,
+          0.0321530238604901,
+          0.02190364501522463,
+          0.014061858330451604,
+          0.011130737950424394,
+          0.008510514410211192,
+          0.006775226872794021
+        ],
+        "cells_compared": 995241
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 1021461,
+          "surface_rate": 0.8114723606874489,
+          "cell_rate": 0.02444929370773823,
+          "max_margin": 0.007391872703944452,
+          "mean_margin_when_violated": 0.0007306266236842885
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 913934,
+          "surface_rate": 0.6306822409046946,
+          "cell_rate": 0.029107134650861004,
+          "max_margin": 0.0031025397480275788,
+          "mean_margin_when_violated": 0.00042541977340882815
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 981475,
+          "surface_rate": 0.6911688118443569,
+          "cell_rate": 0.052494459869074604,
+          "max_margin": 0.004542401036268517,
+          "mean_margin_when_violated": 0.0004485261900081885
+        },
+        "negative_mass": {
+          "mean_per_surface": 0.016839545885308328
+        },
+        "any_violation_surface_rate": 0.9892121121940332,
+        "severity_surface_rate": {
+          "1e-08": 0.9892121121940332,
+          "1e-06": 0.9890633137415371,
+          "1e-04": 0.9554348634774198
+        },
+        "unusable_cell_share": 0.11846705326624085
+      },
+      "price_rmse": 0.0010198173231559986
+    }
+  },
+  "local_error_auc": {
+    "n_stencils": 1365596,
+    "n_positive": 33514,
+    "auc": {
+      "pointwise_price": 0.5941487809656322,
+      "pointwise_iv": 0.9885443587211197,
+      "curvature_abs": 0.6364496742318942,
+      "curvature_rel": 0.9869241682002692
+    }
+  },
+  "dense_grid": {
+    "n_surfaces": 500,
+    "violations": {
+      "monotone": {
+        "tolerance": 1e-12,
+        "checks": 1000000,
+        "surface_rate": 0.866,
+        "cell_rate": 0.012805,
+        "max_margin": 0.0007155837987413011,
+        "mean_margin_when_violated": 5.941390147494353e-05
+      },
+      "convexity": {
+        "tolerance": 1e-12,
+        "checks": 990000,
+        "surface_rate": 1.0,
+        "cell_rate": 0.03571010101010101,
+        "max_margin": 3.9094229561192906e-05,
+        "mean_margin_when_violated": 5.6707087843642795e-06
+      },
+      "calendar": {
+        "tolerance": 1e-12,
+        "checks": 959500,
+        "surface_rate": 0.992,
+        "cell_rate": 0.05519749869723815,
+        "max_margin": 0.001583918566048198,
+        "mean_margin_when_violated": 0.00020043869007611514
+      },
+      "negative_mass": {
+        "mean_per_surface": 0.08019062706145215
+      },
+      "any_violation_surface_rate": 1.0,
+      "severity_surface_rate": {
+        "1e-08": 1.0,
+        "1e-06": 1.0,
+        "1e-04": 0.878
+      }
+    },
+    "autodiff_curvature": {
+      "negative_density_share": 0.03599306930693069,
+      "mean_negative_density": -0.11168953104647665,
+      "surfaces_with_negative_density": 1.0
+    },
+    "positive_strike_slope_share": 0.013123762376237623
+  }
+}

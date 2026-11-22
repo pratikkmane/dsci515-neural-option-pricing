@@ -161,6 +161,7 @@ def aggregate(groups, test_region, truth_sub, run_dir, rng):
             sev_1e6=seed_boot(acc(lambda r: r["results"]["all"]["violations"]["severity_surface_rate"]["1e-06"]), rng),
             sev_1e4=seed_boot(acc(lambda r: r["results"]["all"]["violations"]["severity_surface_rate"]["1e-04"]), rng),
             unusable=seed_boot(acc(lambda r: r["results"]["all"]["violations"]["unusable_cell_share"]), rng),
+            price_rmse=seed_boot(acc(lambda r: r["results"]["all"].get("price_rmse", float("nan"))), rng),
             neg_mass=seed_boot(acc(lambda r: r["results"]["all"]["violations"]["negative_mass"]["mean_per_surface"]), rng),
             fit_seconds=float(np.mean(acc(lambda r: r["fit_seconds"]))),
         )
@@ -412,9 +413,9 @@ def main():
     pw = [r for r in rows if r["model"] == "pointwise"]
     if pw:
         md += ["\n## Pointwise networks\n"]
-        body = [[r["name"], f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["rmse_iv"], 1e3, 2), ci_str(r["viol_all"], percent=True, region="all", seeds=r["seeds"]), ci_str(r["viol_interior"], percent=True, region="interior", seeds=r["seeds"]),
+        body = [[r["name"], f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["price_rmse"], 1e3, 2), ci_str(r["rmse_iv"], 1e3, 2), ci_str(r["viol_all"], percent=True, region="all", seeds=r["seeds"]), ci_str(r["viol_interior"], percent=True, region="interior", seeds=r["seeds"]),
                  ci_str(r["dense_viol"], percent=True), ci_str(r["neg_density_share"], percent=True), pct(r["unusable"][0])] for r in sorted(pw, key=lambda r: (r["name"], r["noise"]))]
-        md.append(md_table(["model", "noise", "seeds", "RMSE (x1e-3)", "violating: base grid", "interior", "violating: dense grid", "negative autodiff density share", "unusable cells"], body))
+        md.append(md_table(["model", "noise", "seeds", "price RMSE (x1e-3)", "vol RMSE (x1e-3)", "violating: base grid", "interior", "violating: dense grid", "negative autodiff density share", "unusable cells"], body))
     os.makedirs(os.path.dirname(a.docs_out), exist_ok=True)
     with open(a.docs_out, "w") as f:
         f.write("\n".join(md))
