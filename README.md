@@ -7,8 +7,9 @@ Base paper: Horvath, Muguruza and Tomas (2021), *Deep learning volatility*, Quan
 ([arXiv:1901.09647](https://arxiv.org/abs/1901.09647)). Base code: [amuguruza/NN-StochVol-Calibrations](https://github.com/amuguruza/NN-StochVol-Calibrations) (MIT).
 
 ## Layout
-- `src/` library and reproduction code
-- `scripts/` experiment runners
+- `src/` library and reproduction code (`heston.py` exact pricer; `heston_reference.py` scalar cross-check)
+- `scripts/` experiment runners and validation
+- `tests/` fast checks, run with `python tests/test_heston.py`
 - `notebooks/` analysis notebooks
 - `data/` Heston training set from the base repo (12,000 samples: 5 parameters + 88 implied vols)
 - `results/` metrics and figures
@@ -17,14 +18,21 @@ Base paper: Horvath, Muguruza and Tomas (2021), *Deep learning volatility*, Quan
 
 ## Reproduction (step 1)
 ```
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate      # Windows PowerShell: .venv\Scripts\activate
 pip install -r requirements.txt
 python src/reproduce_heston.py --epochs 200
 ```
 `--data` and `--out` are optional. Defaults are `data/HestonTrainSet.txt.gz` and `results/reproduction.json`
 resolved from the repository root, so the script works even when launched from `src/`.
 
-See `results/reproduction.json` for the latest numbers.
+See `results/reproduction.json` for the latest numbers and `docs/reproduction_comparison.md` for how they compare.
+
+## Exact Heston pricer (step 2)
+```
+python scripts/validate_heston.py        # reference check and comparison with the shipped data
+python tests/test_heston.py
+```
+Method, validation and open questions are in `docs/heston_pricer.md`.
 
 ## Team workflow
 - Work on a branch, open a pull request, get one review, then merge into `main`.

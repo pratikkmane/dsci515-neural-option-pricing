@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-from heston import (
+from heston_reference import (
     heston_call,
     implied_volatility,
     black_scholes_call,

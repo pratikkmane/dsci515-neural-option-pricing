@@ -89,27 +89,41 @@ Hypothesis tests:
 
 ## 6. Current status
 Done:
-- Four-section proposal drafted (section 9).
+- Four-section proposal submitted (docs/DSCI-515_Project_Proposal_final.pdf, 4 pages). Initial presentation given.
 - Heston surrogate reproduced in PyTorch. Result on 1,800 test surfaces after 200 epochs (77 s on CPU):
   mean relative error 0.18 percent, RMSE 0.0009 implied vol (about 0.09 vol points), worst case 18 percent.
-  Saved in results/reproduction.json.
-Not done / not verified:
+  Saved in results/reproduction.json (key rmse_iv, raw implied-vol units). A later re-run matched to about 14 digits.
 - Compared with the authors' own notebook log: final validation RMSE 0.0279 (ours) against 0.0298 (theirs) in
   standardised units, one seed; epoch-to-epoch variation is about 0.002, and the two definitions differ slightly,
-  so call it consistent, not matching. NOT yet compared with the paper's reported Heston errors. Do that first.
-- results/reproduction.json key is rmse_iv, in raw implied-vol units (0.0009 = about 0.09 vol points).
+  so call it consistent, not matching (docs/reproduction_comparison.md).
+- Worst case located: test surface 844, maturity 0.1, strike 1.5 (18.06 percent). Errors are largest at short
+  maturities and for low initial variance. Descriptive only, one seed. Found independently in
+  results/reproduction_analysis.md and docs/reproduction_comparison.md.
+- Exact Heston pricer: src/heston.py (vectorised, Sobol sampler, implied vol inversion, dense grid), validated in
+  docs/heston_pricer.md. Matches a 30-digit reference to about 3e-13 and the shipped data to about 1e-12 at maturities
+  0.6, 1.2, 1.8, 2.0. Conventions confirmed: spot 1, zero rates, theta is long-run variance, 88 values maturity-major.
+- At maturities 0.1, 0.3, 0.9, 1.5 the shipped vols are slightly lower than exact (RMS 5.9e-4 at 0.1); cause unknown,
+  simple interpolation between maturities does not explain it. About 1.9 percent of 88-grid cells (mostly maturity
+  0.1, strikes 0.5 to 0.7) have out-of-the-money prices below 1e-11 and give NaN: mask them, do not fill.
+Not done / not verified:
+- NOT yet compared with the paper's reported Heston errors (arxiv.org is unreachable from the cloud environment;
+  someone with access should read the Heston section and add the figures to docs/reproduction_comparison.md).
+- src/heston_reference.py (scalar pricer) disagrees with src/heston.py away from the money at maturities of 0.6 and
+  above (median price difference up to 5e-3; scripts/compare_reference_pricer.py). src/heston.py is the one that matches
+  the shipped data. Cause not found. results/heston_grid_validation.md and results/reproduction_analysis.md used the
+  reference pricer for price comparisons, so read their price and implied-vol differences with this in mind.
 - The authors' notebook was not run as published (old Keras import, Windows path). Do not claim it fails; say it was
   written for 2019-era Keras and we ported it.
-- The 18 percent worst case is unexplained; inspect which parameters and grid cells cause it.
 - The claim that no controlled study of this exact question exists rests only on papers found so far.
-- Proposal page count not checked (target at most 4 pages).
+- Presentation feedback (85/100): the research question appeared late (slide 12 of 17) and in several wordings.
+  In the next presentation state it once, early, in one wording.
 
 ## 7. Next tasks, in order
-1. Compare reproduction with the paper; document the gap in docs/.
-2. Write src/heston.py: exact call pricer (characteristic function, numerical integration), Sobol parameter
-   sampler, implied vol inversion, dense price grid. Validate against the shipped data file.
+1. Partly done: compared with the authors' notebook log. Still to do: the paper's own reported Heston errors.
+2. DONE: src/heston.py (see docs/heston_pricer.md). Open: find why src/heston_reference.py disagrees with it.
 3. Write src/violations.py: Carr and Madan checks (decreasing and convex in strike, increasing in maturity),
-   negative probability mass, tolerance calibrated on exact surfaces.
+   negative probability mass, tolerance calibrated on exact surfaces. Measured noise floor of exact dense-grid prices:
+   about 4e-14 (second difference in strike), so the tolerance should be set well above that and checked.
 4. Baselines (ridge, gradient boosting, Gaussian process) and a pointwise network with autodiff curvature.
 5. Manipulation grid with 10 seeds, then bootstrap CIs, AUC analysis, bias-variance decomposition.
 6. Repairs: derivative loss and arbitrage penalty; accuracy against violation frontier.
@@ -129,10 +143,10 @@ Not done / not verified:
    Computational Finance. DOI 10.21314/JCF.2020.390.
 
 ## 9. Repository layout and commands
-- src/ library code; scripts/ experiment runners; notebooks/ analysis; data/ Heston training set;
-  results/ metrics and figures; app/ demo; docs/ proposal and notes.
-- The proposal is an editable document on claude.ai (title: Accurate but Inconsistent: When Do Neural Option
-  Pricers Break No-Arbitrage Rules). Export it to PDF or Markdown into docs/ so it lives in the repo.
+- src/ library code (heston.py is the pricer to use; heston_reference.py is a scalar cross-check); scripts/ experiment
+  runners and validation; tests/ fast checks (python tests/test_heston.py); notebooks/ analysis; data/ Heston training
+  set; results/ metrics and figures; app/ demo; docs/ proposal and notes.
+- The submitted proposal is docs/DSCI-515_Project_Proposal_final.pdf.
 - Setup: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 - Reproduce: python src/reproduce_heston.py --data data/HestonTrainSet.txt.gz --epochs 200
 - Training is small (minutes on CPU). Use a GPU only for the largest runs. Fix seeds and log every run to results/.
