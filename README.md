@@ -42,6 +42,16 @@ python tests/test_violations.py
 `src/violations.py` checks the three Carr and Madan conditions on call price surfaces. Definitions, the tolerance
 (1e-12) and its limits are in `docs/violations.md`.
 
+## Baselines and neural surrogates (step 4)
+```
+python scripts/run_baselines.py --n-train 2000 --noise 0.005 --workers 4        # ridge, boosting, Gaussian process
+python scripts/train_networks.py --kind grid --n-train 10000 --epochs 200       # base-paper network
+python scripts/train_networks.py --kind pointwise --target iv --activation softplus --n-train 2000
+python tests/test_baselines.py ; python tests/test_networks.py                  # the latter needs torch
+```
+Generated surfaces are cached in `data/generated/` (git-ignored). Design, preliminary results and open decisions are in
+`docs/models.md`.
+
 ## Team workflow
 - Work on a branch, open a pull request, get one review, then merge into `main`.
 - One owner per workstream: reproduction and data, baselines and manipulations, repairs and analysis, demo.

@@ -110,7 +110,14 @@ Done:
   margin 2.3e-14, 32 parameter corners included); zero false positives in 31.7 million checks on fresh exact surfaces.
   Sensitivity depends on the grid (finer strike step is more sensitive) and is lowest-headroom at short maturities and in
   the wings, so always compare models on the same fixed grid and report dense and base grids separately.
+- Step 4 code: src/data.py (nested Sobol training sets, fixed 20k test set with interior and boundary labels, label noise),
+  src/evaluate.py, src/baselines.py (ridge, gradient boosting, GP; GP capped at 3,000 points), src/networks.py (grid network
+  and pointwise network with autodiff strike curvature), runners in scripts/. Documented in docs/models.md. Preliminary runs
+  only (one seed, 2,000 and 10,000 training surfaces, noise 0, 0.5, 2 percent): they show the pipeline works and a hint that
+  accuracy and violation rates can move apart under label noise. NOT evidence for any hypothesis yet.
 Not done / not verified:
+- The experiment grid (all sizes, noise levels, 10 seeds, activations, depths) has not been run; the 250k size is a stretch.
+  Pointwise networks need a training budget set before they can be compared with grid networks (docs/models.md, decisions).
 - NOT yet compared with the paper's reported Heston errors (arxiv.org is unreachable from the cloud environment;
   someone with access should read the Heston section and add the figures to docs/reproduction_comparison.md).
 - src/heston_reference.py (scalar pricer) disagrees with src/heston.py away from the money at maturities of 0.6 and
@@ -128,7 +135,7 @@ Not done / not verified:
 2. DONE: src/heston.py (see docs/heston_pricer.md). Open: find why src/heston_reference.py disagrees with it.
 3. DONE: src/violations.py (see docs/violations.md). Evaluate networks in float64; the implied-vol route cannot check
    the 1.9 percent of base-grid cells with unresolved wing prices.
-4. Baselines (ridge, gradient boosting, Gaussian process) and a pointwise network with autodiff curvature.
+4. DONE as code (see docs/models.md); preliminary runs only. Open: pointwise output (price or vol), training budget.
 5. Manipulation grid with 10 seeds, then bootstrap CIs, AUC analysis, bias-variance decomposition.
 6. Repairs: derivative loss and arbitrage penalty; accuracy against violation frontier.
 7. Demo (app/): Gradio app. Sliders for parameters; exact, network and baseline surfaces side by side; violating
@@ -148,7 +155,7 @@ Not done / not verified:
 
 ## 9. Repository layout and commands
 - src/ library code (heston.py is the pricer to use; heston_reference.py is a scalar cross-check); scripts/ experiment
-  runners and validation; tests/ fast checks (python tests/test_heston.py, python tests/test_violations.py); notebooks/ analysis; data/ Heston training
+  runners and validation; tests/ fast checks (test_heston.py, test_violations.py, test_baselines.py, test_networks.py); notebooks/ analysis; data/ Heston training
   set; results/ metrics and figures; app/ demo; docs/ proposal and notes.
 - The submitted proposal is docs/DSCI-515_Project_Proposal_final.pdf.
 - Setup: python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
