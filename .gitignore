@@ -6,3 +6,6 @@ venv/
 results/*_weights.pt
 .env
 .DS_Store
+data/generated/
+results/baselines/*.npz
+results/models/*.pt
