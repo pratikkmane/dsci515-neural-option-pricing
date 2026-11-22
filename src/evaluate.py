@@ -108,3 +108,78 @@ def curvature_report(d2, tol=0.0):
     return dict(negative_density_share=float(neg.mean()),
                 mean_negative_density=float(d2[neg].mean()) if neg.any() else 0.0,
                 surfaces_with_negative_density=float(neg.reshape(len(d2), -1).any(axis=1).mean()))
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Local errors as predictors of violating stencils (H1)
+# ---------------------------------------------------------------------------------------------------------------------
+
+def auc(score, label):
+    """Area under the ROC curve (Mann-Whitney) of `score` for the boolean `label`; NaN if either class is empty."""
+    from scipy.stats import rankdata
+    label = np.asarray(label, bool)
+    pos = int(label.sum())
+    neg = len(label) - pos
+    if pos == 0 or neg == 0:
+        return float("nan")
+    r = rankdata(score)
+    return float((r[label].sum() - pos * (pos + 1) / 2) / (pos * neg))
+
+
+def _butterfly(c):
+    """Butterfly price at every interior strike of a (n, T, K) array on the base grid."""
+    k = H.STRIKES
+    hm, hp = k[1:-1] - k[:-2], k[2:] - k[1:-1]
+    big = hm + hp
+    return (hp / big) * c[..., :-2] - c[..., 1:-1] + (hm / big) * c[..., 2:]
+
+
+def local_error_auc(pred_call, pred_iv, test, tol=None, min_positive=30):
+    """How well does a local error measure rank the stencils that violate convexity? (H1)
+
+    A stencil is a convexity stencil of the base grid (an interior strike at one maturity); it is positive if the predicted
+    surface violates convexity there (margin above the tolerance). Each measure is computed from the predicted and exact
+    surfaces on the stencil's three points:
+      pointwise_price   largest absolute call price error
+      pointwise_iv      largest absolute implied vol error (NaN where the predicted vol is unusable: those stencils are dropped)
+      curvature_abs     absolute error of the butterfly price (the discrete strike curvature)
+      curvature_rel     that error divided by the exact butterfly price (floored at the tolerance): the relative curvature error
+    Pre-specified primary comparison (docs/experiments.md): curvature_abs against pointwise_price.
+    NOTE the link by construction: a violation needs the butterfly error to be negative and larger than the exact butterfly
+    price, so a large curvature error is necessary for a violation. The comparison asks whether the curvature error
+    carries more information than the level error, not whether the two are unrelated.
+
+    pred_call (n, T, K) may hold NaN (unusable); pred_iv (n, 88) may too. Stencils with any missing exact or predicted value
+    are dropped. Returns dict(auc per measure, n_stencils, n_positive); the AUCs are NaN below `min_positive` positives.
+    """
+    tol = V.DEFAULT_TOL.convexity if tol is None else tol
+    exact_call = test["call"].reshape(pred_call.shape)
+    resolved = ~np.isnan(test["iv"]).reshape(pred_call.shape)
+    pc = np.where(resolved, pred_call, np.nan)
+    b_pred, b_true = _butterfly(pc), _butterfly(np.where(resolved, exact_call, np.nan))
+    label = (-b_pred) > tol
+    ok = ~np.isnan(b_pred) & ~np.isnan(b_true)
+
+    def three(x):            # elementwise stencil stack of an (n, T, K) array -> (3, n, T, K-2)
+        return np.stack([x[..., :-2], x[..., 1:-1], x[..., 2:]])
+
+    err_price = np.abs(three(pc) - three(exact_call)).max(axis=0)
+    iv_err = np.abs(pred_iv.reshape(pred_call.shape) - test["iv"].reshape(pred_call.shape))
+    measures = {
+        "pointwise_price": err_price,
+        "pointwise_iv": three(iv_err).max(axis=0),
+        "curvature_abs": np.abs(b_pred - b_true),
+        "curvature_rel": np.abs(b_pred - b_true) / np.maximum(b_true, tol),
+    }
+    out = {"n_stencils": int(ok.sum()), "n_positive": int((label & ok).sum()), "auc": {}}
+    for name, m in measures.items():
+        use = ok & ~np.isnan(m)
+        lab = label[use]
+        out["auc"][name] = auc(m[use], lab) if lab.sum() >= min_positive else float("nan")
+    return out
+
+
+def violating_surfaces(call):
+    """Boolean per surface: any Carr and Madan condition violated at the default tolerance (NaN stencils ignored)."""
+    f = V.flags(call, H.STRIKES, H.MATURITIES)
+    return np.logical_or.reduce([x.reshape(len(call), -1).any(axis=1) for x in f.values()])

@@ -30,6 +30,20 @@ def test_region_labels():
     assert list(data.region(np.array([mid, edge]))) == ["interior", "boundary"]
 
 
+def test_larger_cached_set_is_sliced():
+    old = data.GEN_DIR
+    with tempfile.TemporaryDirectory() as d:
+        data.GEN_DIR = d
+        try:
+            big = data.load_train(256, seed=1)
+            small = data.load_train(100, seed=1)                                        # read from the 256-row cache
+            assert not os.path.exists(os.path.join(d, "train_n100_seed1.npz"))
+            assert np.array_equal(small["iv"], big["iv"][:100], equal_nan=True)
+            assert len(data.load_val(n=64)["params"]) == 64
+        finally:
+            data.GEN_DIR = old
+
+
 def test_nested_training_sets_and_cache():
     old = data.GEN_DIR
     with tempfile.TemporaryDirectory() as d:
@@ -85,6 +99,24 @@ def test_baselines_fit_and_predict():
         assert rmse < 0.05, (model.name, rmse)
         assert isinstance(model.info, dict)
     assert B.PCAGaussianProcess(n_components=4, max_train=150, n_hyper=100, restarts=0).fit(p_tr, tr).info["capped"] is True
+
+
+def test_auc_known_values_and_local_error_auc():
+    assert E.auc(np.array([0.1, 0.2, 0.3, 0.4]), np.array([0, 0, 1, 1], bool)) == 1.0
+    assert E.auc(np.array([0.4, 0.3, 0.2, 0.1]), np.array([0, 0, 1, 1], bool)) == 0.0
+    assert E.auc(np.array([1.0, 1.0, 1.0, 1.0]), np.array([0, 1, 0, 1], bool)) == 0.5          # ties give one half
+    assert np.isnan(E.auc(np.array([1.0, 2.0]), np.array([0, 0], bool)))
+    # exact surfaces plus a few injected dents: the butterfly-error measure must rank the dented stencils first
+    p = H.sobol_params(200, seed=71)
+    iv, call = data.surfaces(p)
+    test = dict(params=p, iv=iv, call=call, region=data.region(p))
+    pred = call.reshape(-1, 8, 11).copy()
+    rng = np.random.default_rng(0)
+    s_idx, t_idx, k_idx = rng.integers(0, 200, 60), rng.integers(0, 8, 60), rng.integers(1, 10, 60)
+    pred[s_idx, t_idx, k_idx] += 5e-3
+    pred_iv = E.prices_to_iv(pred, iv)
+    r = E.local_error_auc(pred, pred_iv, test)
+    assert r["n_positive"] > 30 and r["auc"]["curvature_abs"] > 0.95 and r["auc"]["pointwise_price"] > 0.95
 
 
 def test_refit_recomputes_component_count_and_ridge_guard():

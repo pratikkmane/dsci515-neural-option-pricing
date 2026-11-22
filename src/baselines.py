@@ -87,8 +87,10 @@ class _Surface:
 class RidgePoly:
     name = "ridge_poly"
 
-    def __init__(self, degrees=(2, 3, 4, 5, 6, 7, 8), alphas=(1e-10, 1e-8, 1e-6, 1e-4), cv=3, rank=10, max_val_rows=20000, seed=0):
+    def __init__(self, degrees=(2, 3, 4, 5, 6, 7, 8), alphas=(1e-10, 1e-8, 1e-6, 1e-4), cv=3, rank=10, max_val_rows=20000,
+                 cv_max_rows=40000, max_features=800, seed=0):
         self.degrees, self.alphas, self.cv, self.rank, self.max_val_rows, self.seed = degrees, alphas, cv, rank, max_val_rows, seed
+        self.cv_max_rows, self.max_features = cv_max_rows, max_features
 
     def fit(self, params, iv):
         x = data.scale_params(params)
@@ -96,22 +98,29 @@ class RidgePoly:
         z = self.surf.z
         rng = np.random.default_rng(self.seed)
         cv_mse = {}
+        # cross-validation runs on at most cv_max_rows rows (cost), and degrees with more than max_features features are
+        # skipped (memory); the chosen degree and penalty are then refitted on all rows
+        sel = rng.permutation(len(x))[:self.cv_max_rows]
+        x_cv, z_cv = x[sel], z[sel]
         for d in self.degrees:
-            phi = PolynomialFeatures(d, include_bias=False).fit_transform(x)
-            if phi.shape[1] > 0.5 * len(x) * (1 - 1 / self.cv):    # more features than half the fitting rows: skip
+            poly = PolynomialFeatures(d, include_bias=False)
+            if poly.fit(x_cv[:2]).n_output_features_ > self.max_features:
+                continue
+            phi = poly.fit_transform(x_cv)
+            if phi.shape[1] > 0.5 * len(x_cv) * (1 - 1 / self.cv):    # more features than half the fitting rows: skip
                 continue
             errs = {a: [] for a in self.alphas}
             for tr, va in KFold(self.cv, shuffle=True, random_state=self.seed).split(phi):
                 va = rng.choice(va, min(len(va), self.max_val_rows), replace=False)
                 m, s = phi[tr].mean(0), phi[tr].std(0) + 1e-12
                 a_mat = (phi[tr] - m) / s
-                ym = z[tr].mean(0)
+                ym = z_cv[tr].mean(0)
                 w, v = np.linalg.eigh(a_mat.T @ a_mat)
-                aty = v.T @ (a_mat.T @ (z[tr] - ym))
+                aty = v.T @ (a_mat.T @ (z_cv[tr] - ym))
                 av = ((phi[va] - m) / s) @ v
                 for a in self.alphas:
                     pred = av @ (aty / (w + a * len(tr))[:, None]) + ym
-                    errs[a].append(np.mean((z[va] - pred) ** 2))
+                    errs[a].append(np.mean((z_cv[va] - pred) ** 2))
             for a in self.alphas:
                 cv_mse[(d, a)] = float(np.mean(errs[a]))
         if not cv_mse:
@@ -124,7 +133,7 @@ class RidgePoly:
         self.ym = z.mean(0)
         self.coef = np.linalg.solve(a_mat.T @ a_mat + a * len(x) * np.eye(a_mat.shape[1]), a_mat.T @ (z - self.ym))
         self.info = dict(degree=d, alpha=a, cv_mse_standardised=best, n_features=phi.shape[1],
-                         cv_folds=self.cv, degrees_tried=[dd for dd in self.degrees if any(k[0] == dd for k in cv_mse)])
+                         cv_folds=self.cv, cv_rows=int(len(x_cv)), degrees_tried=[dd for dd in self.degrees if any(k[0] == dd for k in cv_mse)])
         return self
 
     def predict(self, params):
