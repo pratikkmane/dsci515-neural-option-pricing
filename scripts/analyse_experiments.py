@@ -252,7 +252,7 @@ def variance_link(store, test_region, truth_sub, rng, name):
     interior = test_region == "interior"
     sub_in = interior[:truth_sub.shape[0]]
     S = min(store[k]["flags"].shape[0] for k in keys)
-    if S < 3:
+    if S < 5:
         return None
 
     def stat(idx):
@@ -311,7 +311,7 @@ def figures(rows, fig_dir):
         rs = [r for r in rows if r["name"] == name]
         sizes = sorted({r["n"] for r in rs})
         noises = sorted({r["noise"] for r in rs})
-        if len(noises) < 2:
+        if len(noises) < 2 or len(sizes) < 2:
             continue
         fig, ax = plt.subplots(1, 2, figsize=(10, 3.6))
         for n in sizes:
@@ -362,7 +362,7 @@ def main():
           "surfaces resampled too for rates. No correction for multiple comparisons.\n"]
     for name in sorted({r["name"] for r in rows}):
         rs = [r for r in rows if r["name"] == name]
-        if len({(r["n"], r["noise"]) for r in rs}) > 1:
+        if len({r["n"] for r in rs}) > 1:
             md += [f"\n## {name}: size and noise\n", f"Seeds per setting: {sorted({r['seeds'] for r in rs})}.\n", size_noise_table(rows, name)]
     md += ["\n## H1: do curvature errors predict violating stencils better than pointwise errors?\n",
            "AUC of each local error measure for ranking convexity stencils of the base grid (positive = the model violates convexity "
@@ -400,6 +400,15 @@ def main():
         md += ["\n### Does the variance term track the interior violation rate?\n",
                "Spearman correlation across the settings of one model, with a seed-bootstrap interval.\n",
                md_table(["model", "settings", "seeds", "Spearman", "95% interval"], [[l["name"], l["settings"], l["seeds"], f"{l['spearman']:+.2f}", f"[{l['lo']:+.2f}, {l['hi']:+.2f}]"] for l in links])]
+    arch = [r for r in rows if r["model"] == "grid_net" and r["n"] == 10000 and r["noise"] in (0.0, 0.02)]
+    if len({r["name"] for r in arch}) > 1:
+        md += ["\n## Architecture: one factor at a time around the base grid network (n = 10,000)\n",
+               "Base is 3 layers of 30 ELU units. Seeds: 10 for the base, 5 for the variants.\n"]
+        body = [[r["name"].replace("grid_net ", ""), f"{100 * r['noise']:g}%", r["seeds"], ci_str(r["rmse_iv"], 1e3, 2),
+                 ci_str(r["viol_all"], percent=True, region="all", seeds=r["seeds"]), ci_str(r["viol_interior"], percent=True, region="interior", seeds=r["seeds"]),
+                 ci_str(r["viol_boundary"], percent=True, region="boundary", seeds=r["seeds"]), pct(r["conv_rate"][0]), pct(r["cal_rate"][0]),
+                 pct(r["sev_1e4"][0]), f"{r['fit_seconds']:.0f}"] for r in sorted(arch, key=lambda r: (r["noise"], r["name"]))]
+        md.append(md_table(["variant", "noise", "seeds", "RMSE (x1e-3)", "violating: all", "interior", "boundary", "conv", "cal", ">1e-4", "fit s"], body))
     pw = [r for r in rows if r["model"] == "pointwise"]
     if pw:
         md += ["\n## Pointwise networks\n"]
