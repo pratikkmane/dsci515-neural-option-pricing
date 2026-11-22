@@ -113,8 +113,14 @@ def negative_mass(call, strikes, maturities, tol=DEFAULT_TOL):
     return np.where(m > tol.convexity, -increment, 0.0).sum(axis=2)
 
 
-def summarise(call, strikes, maturities, tol=DEFAULT_TOL):
-    """Violation statistics per condition: surface rate, cell rate, size, and negative probability mass."""
+SEVERITY_THRESHOLDS = (1e-8, 1e-6, 1e-4)      # price units, spot 1: 1e-4 is one basis point of the spot
+
+
+def summarise(call, strikes, maturities, tol=DEFAULT_TOL, severity=SEVERITY_THRESHOLDS):
+    """Violation statistics per condition: surface rate, cell rate, size, negative probability mass, and severity.
+
+    `severity` gives, for each threshold, the share of surfaces whose largest violation margin (any condition) exceeds it,
+    so that a rate based on the 1e-12 tolerance can be read next to how large the violations are."""
     tol = tol if isinstance(tol, Tolerance) else Tolerance.uniform(float(tol))
     m = margins(call, strikes, maturities)
     n = len(m["monotone"])
@@ -136,4 +142,6 @@ def summarise(call, strikes, maturities, tol=DEFAULT_TOL):
         )
     out["negative_mass"] = dict(mean_per_surface=float(np.nanmean(negative_mass(call, strikes, maturities, tol).sum(axis=1))))
     out["any_violation_surface_rate"] = float(any_bad.mean())
+    worst = np.nanmax(np.stack([np.nanmax(m[c].reshape(n, -1), axis=1) for c in CONDITIONS]), axis=0) if n else np.array([])
+    out["severity_surface_rate"] = {f"{t:.0e}": float(np.mean(worst > t)) for t in severity}
     return out

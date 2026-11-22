@@ -34,6 +34,21 @@ class TrainConfig:
     batch_size: int = 32
     lr: float = 1e-3
     seed: int = 0
+    schedule: str = "constant"       # "cosine" decays the learning rate to 1 percent of lr over training
+
+
+def grid_batch_size(n):
+    """Batch size that keeps the number of optimiser steps about the same for every training size: the base paper's 32
+    (10,200 surfaces, 319 steps per epoch) up to 10,000 surfaces, then growing in proportion (160 at 50,000, 800 at 250,000)."""
+    return 32 if n <= 10_000 else int(round(32 * n / 10_000 / 32) * 32)
+
+
+def make_scheduler(opt, cfg, steps_per_epoch):
+    if cfg.schedule == "constant":
+        return None
+    if cfg.schedule != "cosine":
+        raise ValueError("schedule must be 'constant' or 'cosine'")
+    return torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=cfg.epochs * steps_per_epoch, eta_min=cfg.lr * 0.01)
 
 
 def scale_k(k):
@@ -80,6 +95,7 @@ class GridSurrogate:
         x = torch.tensor(data.scale_params(params), dtype=DTYPE)
         self.net = mlp(5, N_CELLS, c.width, c.depth, c.activation)
         opt = torch.optim.Adam(self.net.parameters(), lr=c.lr)
+        sched = make_scheduler(opt, c, -(-len(x) // c.batch_size))
         self.history = []
         for _ in range(c.epochs):
             perm, total, steps = torch.randperm(len(x)), 0.0, 0
@@ -89,6 +105,8 @@ class GridSurrogate:
                 loss = masked_rmse(self.net(x[idx]), y[idx], mask[idx])
                 loss.backward()
                 opt.step()
+                if sched:
+                    sched.step()
                 total, steps = total + loss.item(), steps + 1
             self.history.append(total / steps)
         self.info = dict(config=asdict(c), final_train_loss_standardised=self.history[-1], n_parameters=sum(p.numel() for p in self.net.parameters()))
@@ -136,6 +154,7 @@ class PointwiseSurrogate:
             rows, y = torch.nonzero(~torch.isnan(flat))[:, 0], flat
         self.net = mlp(7, 1, c.width, c.depth, c.activation)
         opt = torch.optim.Adam(self.net.parameters(), lr=c.lr)
+        sched = make_scheduler(opt, c, -(-len(rows) // c.batch_size))
         self.history = []
         for _ in range(c.epochs):
             perm = rows[torch.randperm(len(rows))]
@@ -150,6 +169,8 @@ class PointwiseSurrogate:
                 loss = torch.sqrt(torch.mean((pred - y[r]) ** 2))
                 loss.backward()
                 opt.step()
+                if sched:
+                    sched.step()
                 total, steps = total + loss.item(), steps + 1
             self.history.append(total / steps)
         self.info = dict(config=asdict(c), target=self.target, final_train_loss=self.history[-1],
@@ -182,7 +203,8 @@ class PointwiseSurrogate:
         """Price, dC/dK and d2C/dK2 (the implied density) by autograd, each (n, T, K)."""
         params = np.atleast_2d(params)
         res = [[], [], []]
-        for sl in self._chunks(len(params), strikes, maturities):
+        # the double-backward graph is much larger than a forward pass, so use small chunks (about 0.5 GB for a 128 x 4 net)
+        for sl in self._chunks(len(params), strikes, maturities, max_rows=25_000):
             theta, k, t = self._grid_inputs(params[sl], strikes, maturities)
             ks = scale_k(k).clone().requires_grad_(True)
             kk = (ks + 1) / 2 * (K_HI - K_LO) + K_LO                  # strike as a function of the input being differentiated

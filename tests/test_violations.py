@@ -91,6 +91,14 @@ def test_summarise_rates():
     assert np.isclose(s["convexity"]["cell_rate"], 1 / (2 * 3 * 9))
 
 
+def test_severity_rates():
+    c = np.concatenate([linear_surface()] * 3)
+    c[1, 1, 5] += 1e-7                                                  # tiny violation (butterfly margin 1e-7)
+    c[2, 1, 5] += 1e-3                                                  # large violation
+    s = V.summarise(c, K, T)["severity_surface_rate"]
+    assert np.isclose(s["1e-08"], 2 / 3) and np.isclose(s["1e-06"], 1 / 3) and np.isclose(s["1e-04"], 1 / 3)
+
+
 def test_nonuniform_strikes_use_weighted_butterfly():
     k = np.array([0.5, 0.6, 0.9, 1.0, 1.5])
     c = (1 - k)[None, None, :]

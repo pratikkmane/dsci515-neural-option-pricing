@@ -52,6 +52,14 @@ python tests/test_baselines.py ; python tests/test_networks.py                  
 Generated surfaces are cached in `data/generated/` (git-ignored). Design, preliminary results and open decisions are in
 `docs/models.md`.
 
+## Experiments (step 5)
+```
+python scripts/run_experiments.py core_small --processes 4      # plans: core_small core_large boosting gp architecture pointwise
+python scripts/analyse_experiments.py                           # tables, intervals, figures, docs/experiments_results.md
+```
+Runs are resumable; per-run summaries go to `results/runs/*.json` (committed) and predictions to `*.npz` (not committed). Protocol,
+findings and limits are in `docs/experiments.md`.
+
 ## Team workflow
 - Work on a branch, open a pull request, get one review, then merge into `main`.
 - One owner per workstream: reproduction and data, baselines and manipulations, repairs and analysis, demo.

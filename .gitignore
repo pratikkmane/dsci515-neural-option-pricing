@@ -9,3 +9,5 @@ results/*_weights.pt
 data/generated/
 results/baselines/*.npz
 results/models/*.pt
+results/runs/*.npz
+results/runs/*.tmp

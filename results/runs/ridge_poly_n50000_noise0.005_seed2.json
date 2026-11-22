@@ -1,0 +1,217 @@
+{
+  "run": {
+    "model": "ridge_poly",
+    "n": 50000,
+    "noise": 0.005,
+    "seed": 2,
+    "width": 30,
+    "depth": 3,
+    "activation": "elu",
+    "target": "iv",
+    "epochs": 0,
+    "batch_size": 0,
+    "lr": 0.001,
+    "schedule": "constant"
+  },
+  "tag": "ridge_poly_n50000_noise0.005_seed2",
+  "fit_seconds": 15.56747841835022,
+  "evaluate_seconds": 0.9334976673126221,
+  "model_info": {
+    "degree": 7,
+    "alpha": 0.0001,
+    "cv_mse_standardised": 0.006974139490879561,
+    "n_features": 791,
+    "cv_folds": 3,
+    "cv_rows": 40000,
+    "degrees_tried": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "n_test": 20000,
+  "train_nan_cell_share": 0.042263636363636364,
+  "results": {
+    "all": {
+      "n_surfaces": 20000,
+      "accuracy": {
+        "rmse_iv": 0.0019769290140377836,
+        "p99_abs_error_iv": 0.007525575007295445,
+        "mean_rel_error_pct": 0.30349493128791316,
+        "max_rel_error_pct": 106.7771481493916,
+        "rmse_iv_by_maturity": [
+          0.002804837836727761,
+          0.0038637444803384545,
+          0.0023124165920391866,
+          0.0015609665836380877,
+          0.0010259720889050606,
+          0.0006607959896846437,
+          0.0006290023114495515,
+          0.0006158995505053939
+        ],
+        "cells_compared": 1685595
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 1525595,
+          "surface_rate": 0.0,
+          "cell_rate": 0.0,
+          "max_margin": -4.028529295689104e-10,
+          "mean_margin_when_violated": 0.0
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 1365596,
+          "surface_rate": 0.0008,
+          "cell_rate": 2.0503867908224686e-05,
+          "max_margin": 0.0003400624066838831,
+          "mean_margin_when_violated": 4.916902848659778e-05
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 1465932,
+          "surface_rate": 0.0195,
+          "cell_rate": 0.0006030293356035614,
+          "max_margin": 0.0003205496511561323,
+          "mean_margin_when_violated": 2.5898449373838106e-06
+        },
+        "negative_mass": {
+          "mean_per_surface": 1.3767327976244947e-06
+        },
+        "any_violation_surface_rate": 0.0198,
+        "severity_surface_rate": {
+          "1e-08": 0.01385,
+          "1e-06": 0.00415,
+          "1e-04": 0.0002
+        },
+        "unusable_cell_share": 0.0
+      }
+    },
+    "interior": {
+      "n_surfaces": 6559,
+      "accuracy": {
+        "rmse_iv": 0.0015882153897568768,
+        "p99_abs_error_iv": 0.0056920099876647595,
+        "mean_rel_error_pct": 0.2179379230131449,
+        "max_rel_error_pct": 68.44317566459878,
+        "rmse_iv_by_maturity": [
+          0.0025281091699845804,
+          0.0033818738839828406,
+          0.001435129497645277,
+          0.0009369617208833005,
+          0.0005815025849637145,
+          0.0003626985976412042,
+          0.0003447463416869145,
+          0.00033452727352517743
+        ],
+        "cells_compared": 556606
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 504134,
+          "surface_rate": 0.0,
+          "cell_rate": 0.0,
+          "max_margin": -6.618392873209932e-10,
+          "mean_margin_when_violated": 0.0
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 451662,
+          "surface_rate": 0.0,
+          "cell_rate": 0.0,
+          "max_margin": -2.125960155490625e-08,
+          "mean_margin_when_violated": 0.0
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 484457,
+          "surface_rate": 0.0051837170300350665,
+          "cell_rate": 0.00014655583467676183,
+          "max_margin": 6.895003163420732e-06,
+          "mean_margin_when_violated": 2.0170321419359152e-07
+        },
+        "negative_mass": {
+          "mean_per_surface": 0.0
+        },
+        "any_violation_surface_rate": 0.0051837170300350665,
+        "severity_surface_rate": {
+          "1e-08": 0.0033541698429638664,
+          "1e-06": 0.00015246226558926666,
+          "1e-04": 0.0
+        },
+        "unusable_cell_share": 0.0
+      }
+    },
+    "boundary": {
+      "n_surfaces": 13441,
+      "accuracy": {
+        "rmse_iv": 0.002142772827512657,
+        "p99_abs_error_iv": 0.008322618539278431,
+        "mean_rel_error_pct": 0.34567562937069846,
+        "max_rel_error_pct": 106.7771481493916,
+        "rmse_iv_by_maturity": [
+          0.0029332342506009565,
+          0.004082823076725209,
+          0.0026414951494631435,
+          0.0017901584870364895,
+          0.001184687029481473,
+          0.0007656046699553207,
+          0.0007287716313337136,
+          0.0007142331835962418
+        ],
+        "cells_compared": 1128989
+      },
+      "violations": {
+        "monotone": {
+          "tolerance": 1e-12,
+          "checks": 1021461,
+          "surface_rate": 0.0,
+          "cell_rate": 0.0,
+          "max_margin": -4.028529295689104e-10,
+          "mean_margin_when_violated": 0.0
+        },
+        "convexity": {
+          "tolerance": 1e-12,
+          "checks": 913934,
+          "surface_rate": 0.0011903876199687523,
+          "cell_rate": 3.063678558845606e-05,
+          "max_margin": 0.0003400624066838831,
+          "mean_margin_when_violated": 4.916902848659778e-05
+        },
+        "calendar": {
+          "tolerance": 1e-12,
+          "checks": 981475,
+          "surface_rate": 0.02648612454430474,
+          "cell_rate": 0.0008283450928449527,
+          "max_margin": 0.0003205496511561323,
+          "mean_margin_when_violated": 2.798403439655035e-06
+        },
+        "negative_mass": {
+          "mean_per_surface": 2.0485570978714303e-06
+        },
+        "any_violation_surface_rate": 0.02693251990179302,
+        "severity_surface_rate": {
+          "1e-08": 0.01897180269325199,
+          "1e-06": 0.006100736552339856,
+          "1e-04": 0.0002975969049921881
+        },
+        "unusable_cell_share": 0.0
+      }
+    }
+  },
+  "local_error_auc": {
+    "n_stencils": 1365596,
+    "n_positive": 28,
+    "auc": {
+      "pointwise_price": NaN,
+      "pointwise_iv": NaN,
+      "curvature_abs": NaN,
+      "curvature_rel": NaN
+    }
+  }
+}
