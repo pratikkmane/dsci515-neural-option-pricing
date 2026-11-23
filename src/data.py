@@ -94,6 +94,36 @@ def load_test(workers=1, n=N_TEST):
     return d
 
 
+def _derivs(params):
+    _, d1, d2 = H.call_strike_derivatives(params)
+    return d1.reshape(len(params), -1), d2.reshape(len(params), -1)
+
+
+def strike_derivatives(params, workers=1):
+    """Exact dC/dK and d2C/dK2 on the base grid, each (n, 88) maturity-major (src/heston.py, call_strike_derivatives)."""
+    params = np.atleast_2d(params)
+    if workers <= 1 or len(params) < 2000:
+        return _derivs(params)
+    from concurrent.futures import ProcessPoolExecutor
+    with ProcessPoolExecutor(workers) as ex:
+        parts = list(ex.map(_derivs, np.array_split(params, workers * 4)))
+    return np.concatenate([p[0] for p in parts]), np.concatenate([p[1] for p in parts])
+
+
+def load_derivs(split, params, n=None, seed=0, workers=1):
+    """Cached exact strike-derivative labels for a training set ('train', n rows, seed) or the test set ('test').
+    Returns dict(slope (n, 88), density (n, 88))."""
+    name = f"deriv_train_n{len(params)}_seed{seed}" if split == "train" else f"deriv_{split}_n{len(params)}"
+    path = os.path.join(GEN_DIR, name + ".npz")
+    if os.path.exists(path):
+        d = np.load(path)
+        return {k: d[k] for k in d.files}
+    slope, density = strike_derivatives(params, workers)
+    os.makedirs(GEN_DIR, exist_ok=True)
+    np.savez(path, slope=slope, density=density)
+    return dict(slope=slope, density=density)
+
+
 def add_noise(y, level, seed):
     """Multiplicative Gaussian noise y * (1 + level * N(0, 1)); NaN stays NaN. level 0 returns y unchanged."""
     y = np.asarray(y, float)

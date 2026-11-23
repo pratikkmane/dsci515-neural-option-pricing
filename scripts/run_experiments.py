@@ -25,9 +25,10 @@ def main():
     ap.add_argument("--seeds", type=int, default=10)
     ap.add_argument("--limit", type=int, default=0, help="run only the first N missing runs")
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--out-dir", default=experiment.RUN_DIR)
+    ap.add_argument("--out-dir", default=None, help="default: results/runs, or the plan's own folder (experiment.PLAN_DIRS)")
     a = ap.parse_args()
 
+    a.out_dir = a.out_dir or experiment.PLAN_DIRS.get(a.plan, experiment.RUN_DIR)
     runs = experiment.plan(a.plan, a.seeds)
     todo = [r for r in runs if not os.path.exists(os.path.join(a.out_dir, r.tag() + ".json"))]
     if a.limit:
