@@ -66,3 +66,6 @@ findings and limits are in `docs/experiments.md`.
 
 ## Credits
 Data and base architecture from the authors' MIT-licensed repository, cited above.
+
+## Demo
+`python app/app.py` runs the Gradio demo locally; `python scripts/build_space.py` builds the Hugging Face Space folder. See docs/demo.md.

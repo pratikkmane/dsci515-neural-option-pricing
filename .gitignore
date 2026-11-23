@@ -12,3 +12,4 @@ results/models/*.pt
 results/runs/*.npz
 results/runs/*.tmp
 results/repairs/runs/*.npz
+dist/
