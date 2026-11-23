@@ -9,7 +9,7 @@ A Gradio app (`app/`) that illustrates the findings. It is not evidence: the mod
 - Price networks are checked on the dense grid (101 strikes, 20 maturities); the grid network and ridge only on the 11 x 8 grid they output. The two are not directly comparable and the app says so.
 
 ## Files
-- `app/core.py` (logic, no UI), `app/app.py` (UI), `app/surrogates.py` (numpy forward pass: no torch needed at demo time), `app/models/*.npz` (trained weights, about 140 kB in total).
+- `app/core.py` (logic, no UI), `app/app.py` (UI), `app/surrogates.py` (numpy forward pass: no torch needed at demo time), `app/models/*.npz` (trained weights, under 1 MB in total).
 - `scripts/train_demo_models.py` retrains the four models (about 10 minutes on CPU); `scripts/build_space.py` assembles the upload folder `dist/space/`.
 - `tests/test_app.py`: the numpy forward pass equals the torch network; one evaluation, one figure pair and one search run end to end.
 
