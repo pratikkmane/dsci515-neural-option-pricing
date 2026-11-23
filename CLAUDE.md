@@ -126,6 +126,7 @@ Done:
   violations 0.9 percent at 2k, none at 50k or 250k; none at all with clean labels); (6) wide networks with noisy labels violate
   much more (6 to 9 percent against 1.5); (7) H1 is true by construction and informative only under noise. H3 not tested yet.
 - Step 6 repairs: 48 runs (pointwise price net, 5,000 surfaces, 3 seeds, noise 0 and 2 percent; protocol docs/repairs.md, tables docs/repairs_results.md). No derivative-loss weight reached under 1 percent violating cells (6 percent against 9 for the control) although the density error fell from 0.30 to 0.07; the arbitrage penalty did (0.6 percent at weight 10) with a lower implied vol RMSE than the control and a slightly higher price RMSE. So H3 is not supported in this set-up, with the caveat that the penalty uses random points and the derivative loss only grid points. Descriptive, 3 seeds.
+- Step 7 demo: Gradio app in app/ (exact surface against grid network, ridge, price network and price network with the arbitrage penalty; density, violation maps, table, search for a breaking setting), numpy-only at run time, tested from the built bundle; not yet deployed (docs/demo.md).
 Not done / not verified:
 - Step 6 follow-ups: derivative loss with labels at random points; more seeds; other sizes. Experiment parts are reduced in seeds and levels (see
   docs/experiments.md, deviations); the 250k size has 5 seeds. Nothing is corrected for multiple comparisons.
@@ -151,7 +152,7 @@ Not done / not verified:
 4. DONE as code (see docs/models.md); preliminary runs only. Open: pointwise output (price or vol), training budget.
 5. DONE (see docs/experiments.md). Re-run: python scripts/run_experiments.py <plan>, then python scripts/analyse_experiments.py.
 6. DONE (see docs/repairs.md): derivative loss and arbitrage penalty; frontier in results/repairs/frontier.png.
-7. Demo (app/): Gradio app. Sliders for parameters; exact, network and baseline surfaces side by side; violating
+7. Demo built (see docs/demo.md; needs deploying as a Hugging Face Space by an account owner). Gradio app. Sliders for parameters; exact, network and baseline surfaces side by side; violating
    regions highlighted. Deploy as a Hugging Face Space (free tier is CPU only and sleeps when idle).
 8. Write-up and presentation. Papers to discuss: the base paper plus the references below.
 

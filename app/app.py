@@ -13,9 +13,11 @@ Neural networks can price options in microseconds and are usually accurate. A va
 (convexity is the probability density, so a violation means negative probability) and **increasing in maturity**. Here the true prices come from
 the exact Heston model, so every violation is a real failure. Move the sliders and see where each model breaks a rule.
 
-*These are single example networks (one seed, trained on clean data). The study's evidence is in the repository's experiments: with the same
-accuracy a price-output network violates the rules on almost every surface, and adding an arbitrage penalty removes most violations.*"""
-NOTES = """Reading the table: a *check* is a stencil of three neighbouring strikes (convexity), two strikes (monotonicity) or two maturities (calendar).
+*These are single example networks (one seed, trained on clean data). The study's evidence is in the repository's experiments: a price-output network
+has a small price error (about 0.001) yet violates the rules on most surfaces, and adding an arbitrage penalty removes most of the violations.*"""
+NOTES = """In the maps, dark red marks points that take part in a violated check; pale orange marks cells where the exact price is too small to check (those are skipped, as in the experiments). The base-paper network and ridge curves coincide here because both are close to the exact curve.
+
+Reading the table: a *check* is a stencil of three neighbouring strikes (convexity), two strikes (monotonicity) or two maturities (calendar).
 Price networks are checked on a dense grid (101 strikes, 20 maturities), the base-paper network and ridge only on the 11 x 8 grid they output.
 The tolerance is 1e-12 in price, calibrated so that the exact model never trips it."""
 
@@ -46,7 +48,7 @@ with gr.Blocks(title="Accurate but inconsistent") as demo:
             pre = gr.Dropdown(list(core.PRESETS), value="Typical", label="Presets")
             gr.Markdown("**Try to break a network**")
             target = gr.Dropdown([v[0] for v in MODELS.values() if v[1].kind == "pointwise"] or [v[0] for v in MODELS.values()],
-                                 value=[v[0] for v in MODELS.values()][-2] if len(MODELS) > 1 else None, label="Network to attack")
+                                 value=MODELS["price"][0] if "price" in MODELS else None, label="Network to attack")
             btn = gr.Button("Search 300 random settings for the worst case")
             msg = gr.Markdown()
         with gr.Column(scale=3):
